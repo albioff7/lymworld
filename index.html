@@ -62,6 +62,8 @@
   .mem.sel{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold)}
   .mem .nm{font-weight:700}
   .mem .sub{font-size:12px; color:var(--muted); margin-top:2px}
+  .memobtn{background:none; border:none; color:var(--muted); cursor:pointer; font-size:13px; padding:0 5px; vertical-align:1px}
+  .memobtn:hover{color:var(--gold)}
   .wtag{display:inline-block; font-size:11px; background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:var(--muted); margin:2px 3px 0 0}
   .wtag.hit{border-color:var(--gold-deep); color:var(--gold)}
   .wtag.catfull{background:var(--gold); border-color:var(--gold); color:#191509; font-weight:700; font-size:12px; padding:2px 9px}
@@ -665,6 +667,23 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
+  // 텍스트 입력 모달 (특이사항 등)
+  function askText(title, defaultVal) {
+    return new Promise(res => {
+      const ov = document.createElement("div"); ov.className = "modal";
+      ov.innerHTML = `<div class="box" style="max-width:380px">
+        <h3>${esc(title)}</h3>
+        <input type="text" id="asktx" placeholder="예: 21시 퇴근, 스펙 낮음, 지각 예정..." value="${esc(defaultVal || "")}" style="width:100%; font-size:15px; padding:10px 13px" maxlength="80" autocomplete="off">
+        <button class="btn" id="asktxok" style="width:100%; margin-top:10px">저장</button>
+      </div>`;
+      const done = v => { res(v); ov.remove(); };
+      ov.querySelector("#asktxok").onclick = () => done(ov.querySelector("#asktx").value);
+      ov.querySelector("#asktx").addEventListener("keydown", e => { if (e.key === "Enter") done(e.target.value); });
+      ov.addEventListener("click", e => { if (e.target === ov) done(null); });
+      document.body.appendChild(ov);
+      const inp = ov.querySelector("#asktx"); inp.focus();
+    });
+  }
   // 닉네임 입력 모달 (자판 입력 + 멤버 목록 자동완성)
   function askName(defaultName) {
     return new Promise(res => {
@@ -821,9 +840,16 @@ async function pageAdmin(key) {
         weps = fullCats.map(cn => `<span class="wtag catfull">${esc(cn)}</span>`).join("") +
           rest.map(id => `<span class="wtag${needs.has(id) ? " hit" : ""}">${esc(EMAP.get(id)?.name || id)}</span>`).join("");
       }
-      d.innerHTML = `<span class="nm">${esc(c.members.nickname)}</span>${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각</span>' : ""}<div>${weps}</div>${c.memo ? `<div class="sub">💬 ${esc(c.memo)}</div>` : ""}`;
+      d.innerHTML = `<span class="nm">${esc(c.members.nickname)}</span><button class="memobtn" title="특이사항 입력">✎</button>${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각</span>' : ""}<div>${weps}</div>${c.memo ? `<div class="sub">💬 ${esc(c.memo)}</div>` : ""}`;
       d.draggable = !used.has(mid);
       d.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", "m:" + mid));
+      d.querySelector(".memobtn").onclick = async e => {
+        e.stopPropagation();
+        const t = await askText(`${c.members.nickname} — 특이사항`, c.memo || "");
+        if (t == null) return;
+        await patch(`checkins?event_id=eq.${EV.id}&member_id=eq.${mid}`, { memo: t.trim() || null });
+        refresh();
+      };
       d.onclick = () => { if (used.has(mid)) return; picked = picked === mid ? null : mid; renderPool(); if (picked && selSlot != null) placeSel(); };
       box.appendChild(d);
     }
