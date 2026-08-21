@@ -478,6 +478,11 @@ async function pageRegister() {
     await del(`member_entities?member_id=eq.${curMid}`);
     await post("member_entities", [...selected].map(eid => ({ member_id: curMid, entity_id: eid })), "return=minimal");
     localStorage.setItem(MYKEY, curMid);
+    // 진행 중인 컨텐츠에 이미 참가 신청돼 있으면, 그 체크인의 무기도 즉시 갱신
+    try {
+      const evs = await get(`events?guild_id=eq.${G.id}&status=eq.open&select=id`);
+      if (evs.length) await patch(`checkins?member_id=eq.${curMid}&delegate=is.false&event_id=in.(${evs.map(e => e.id).join(",")})`, { entity_ids: [...selected] });
+    } catch (e) { /* 체크인이 없으면 무시 */ }
     const st = $("savestat"); if (st) { st.textContent = "✓ 자동 저장됨"; setTimeout(() => { if (st.textContent === "✓ 자동 저장됨") st.textContent = ""; }, 2000); }
   }
   function queueSave() {
@@ -664,7 +669,7 @@ async function pageAdmin(key) {
       <div class="row">
         <h1>🛡 콜러 대시보드</h1>
         <select id="tpl">${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
-        <input type="text" id="evtitle" placeholder="이벤트 제목" style="min-width:150px">
+        <input type="text" id="evtitle" placeholder="제목" style="min-width:150px">
         <button class="btn ghost" id="mkev">+ 컨텐츠 생성</button>
         <button class="btn sortie" id="sortie">🚀 출격</button>
         <button class="btn ghost sm pulse" id="openme" style="margin-left:auto">🗡 무기등록</button>
@@ -893,9 +898,8 @@ async function pageAdmin(key) {
           <span class="nm" draggable="true" data-i="${i}" title="이름을 드래그하면 다른 슬롯과 자리 교체" style="cursor:grab">${esc(m?.nickname || "?")}</span>
           <button class="x" data-i="${i}">✕</button></div>`;
       } else {
-        wstack = s.require.type === "entity"
-          ? stack(`<span class="ibox ghost">${iconImg(s.require.value)}</span>`, EMAP.get(s.require.value)?.name)
-          : stack(`<span class="ibox emptybox ghost">🗡</span>`, s.require.label); // 계열/자유 슬롯도 무기칸 표시
+        // 빈 슬롯은 무기 미리보기 없이 빈칸 통일 (요구 무기는 좌측 라벨에 표시)
+        wstack = stack(`<span class="ibox emptybox ghost">🗡</span>`, "무기");
         who2 = `<div class="who2"><span class="empty">비어 있음</span></div>`;
       }
       el.innerHTML = `<div class="slotrow">
