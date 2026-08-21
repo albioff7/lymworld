@@ -696,6 +696,11 @@ async function pageAdmin(key) {
       </div>
     </div>
     <div class="evtabs" id="evtabs"></div>
+    <div class="panel" id="emptybd" style="display:none; text-align:center; padding:48px 20px">
+      <div style="font-size:34px; margin-bottom:8px">🚀</div>
+      <div style="font-family:'Noto Serif KR',serif; color:var(--gold); font-size:18px; font-weight:600">진행 중인 컨텐츠가 없습니다</div>
+      <p class="hint" style="margin-top:6px">위의 <b>+ 컨텐츠 생성</b>으로 다음 판을 준비하세요. 출격한 편성 기록은 안전하게 저장돼 있습니다.</p>
+    </div>
     <div class="cols" id="board" style="display:none">
       <div class="panel">
         <div class="row" style="margin-bottom:10px; align-items:center"><h2 style="margin:0">조합 슬롯</h2><button class="btn ghost sm" id="auto">⚡ 자동 초안</button><button class="btn ghost sm" id="clearAll">배정 초기화</button></div>
@@ -783,8 +788,13 @@ async function pageAdmin(key) {
     EV = null;
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     if (events.length) openEvent(events[0].id);
-    else { $("board").style.display = "none"; renderTabs(); }
+    else showEmptyBoard();
   };
+  function showEmptyBoard() {
+    $("board").style.display = "none";
+    $("emptybd").style.display = "";
+    renderTabs();
+  }
   $("addslot").onclick = async () => {
     if (!EV) return toast("이벤트를 먼저 만드세요");
     EV.slots.push({ pos: "미정", require: { type: "any", value: "", label: "미정" }, gear: null });
@@ -820,7 +830,7 @@ async function pageAdmin(key) {
       EV = null;
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
       if (events.length) openEvent(events[0].id);
-      else { $("board").style.display = "none"; renderTabs(); }
+      else showEmptyBoard();
     } else renderTabs();
   }
   renderTabs();
@@ -850,6 +860,7 @@ async function pageAdmin(key) {
     const asg = await get(`assignments?event_id=eq.${id}&select=*`);
     ASSIGN = {}; for (const a of asg) ASSIGN[a.slot_index] = a;
     $("board").style.display = "";
+    $("emptybd").style.display = "none";
     renderTabs();
     await refresh();
     if (pollTimer) clearInterval(pollTimer);
@@ -1150,6 +1161,7 @@ async function pageAdmin(key) {
   }
   function renderAll() { renderPool(); renderSlots(); renderMsg(); }
   if (events.length) openEvent(events[0].id);
+  else showEmptyBoard();
 }
 
 route();
