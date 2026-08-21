@@ -87,6 +87,8 @@
   .ibox{width:40px; height:40px; background:var(--surface); border:1px solid var(--line); border-radius:7px; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer}
   .ibox img{width:38px; height:38px}
   .ibox.ghost{opacity:.4}
+  .ibox.emptybox{border-style:dashed; color:var(--muted); font-size:15px; opacity:.7}
+  .ibox.emptybox:hover{color:var(--gold); opacity:1}
   .ibox:hover{border-color:var(--gold)}
   .modal{position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px}
   .modal .box{background:var(--surface); border:1px solid var(--gold-deep); border-radius:10px; padding:16px; max-width:560px; max-height:72vh; overflow:auto}
@@ -621,9 +623,11 @@ async function pageAdmin(key) {
       const ghost = !(a && a.member_id);
       const g = (!ghost ? (a.gear || s.gear) : s.gear) || {};
       const stack = (inner, label) => `<div class="istack">${inner}<span class="ilbl">${esc(label || "")}</span></div>`;
-      const gearStacks = GEAR_KEYS.map(k => g[k]
-        ? stack(`<button class="ibox gearbox${ghost ? " ghost" : ""}" data-i="${i}" data-k="${k}"${ghost ? "" : ' draggable="true"'} title="장비 변경 (드래그=교환)">${iconImg(g[k])}</button>`, EMAP.get(g[k])?.name)
-        : "").join("");
+      const gearStacks = GEAR_KEYS.map(k => {
+        if (g[k]) return stack(`<button class="ibox gearbox${ghost ? " ghost" : ""}" data-i="${i}" data-k="${k}"${ghost ? "" : ' draggable="true"'} title="장비 변경 (드래그=교환)">${iconImg(g[k])}</button>`, EMAP.get(g[k])?.name);
+        // 빈칸: 클릭해서 장비 지정
+        return stack(`<button class="ibox gearbox emptybox" data-i="${i}" data-k="${k}" title="${GEAR_KEY_CAT[k]} 선택">＋</button>`, GEAR_KEY_CAT[k]);
+      }).join("");
       let wstack, who2;
       if (!ghost) {
         const m = MEMBERS.find(x => x.id === a.member_id);
