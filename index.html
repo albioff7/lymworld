@@ -95,6 +95,9 @@
   .etab.on{background:var(--gold); color:#191509; font-weight:700; border-color:var(--gold)}
   .etab:hover{border-color:var(--gold-deep); color:var(--gold)}
   .etab.on:hover{color:#191509}
+  #pointhand{display:inline-block; font-size:24px; margin-left:4px; animation:pointL 0.9s ease-in-out infinite; vertical-align:middle}
+  @keyframes pointL{ 0%,100%{transform:translateX(0)} 50%{transform:translateX(-8px)} }
+  @media (prefers-reduced-motion: reduce){ #pointhand{animation:none} }
   .tclose{margin-left:9px; color:var(--warn); font-weight:700; font-size:12px; opacity:.65}
   .tclose:hover{opacity:1}
   .etab.on .tclose{color:#7a2318}
@@ -813,6 +816,8 @@ async function pageAdmin(key) {
   function showEmptyBoard() {
     $("board").style.display = "none";
     $("emptybd").style.display = "";
+    // 컨텐츠 생성 버튼을 가리키는 손가락 (빈 상태에서만)
+    if (!$("pointhand")) $("mkev").insertAdjacentHTML("afterend", '<span id="pointhand">👈</span>');
     renderTabs();
   }
   $("addslot").onclick = async () => {
@@ -881,6 +886,7 @@ async function pageAdmin(key) {
     ASSIGN = {}; for (const a of asg) ASSIGN[a.slot_index] = a;
     $("board").style.display = "";
     $("emptybd").style.display = "none";
+    if ($("pointhand")) $("pointhand").remove();
     renderTabs();
     await refresh();
     if (pollTimer) clearInterval(pollTimer);
