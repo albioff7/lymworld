@@ -728,18 +728,28 @@ async function pageAdmin(key) {
   function askName(defaultName) {
     return new Promise(res => {
       const ov = document.createElement("div"); ov.className = "modal";
-      ov.innerHTML = `<div class="box" style="max-width:340px">
+      ov.innerHTML = `<div class="box" style="max-width:420px">
         <h3>누구로 참가하나요?</h3>
-        <input type="text" id="askn" list="memdl" placeholder="닉네임 입력..." value="${esc(defaultName || "")}" style="width:100%; font-size:16px; padding:11px 13px" autocomplete="off">
-        <datalist id="memdl">${MEMBERS.map(m => `<option value="${esc(m.nickname)}">`).join("")}</datalist>
+        <input type="text" id="askn" placeholder="닉네임 입력 또는 아래에서 선택..." value="${esc(defaultName || "")}" style="width:100%; font-size:16px; padding:11px 13px" autocomplete="off">
+        <div class="chips" id="asklist" style="margin-top:10px; max-height:220px; overflow:auto">
+          ${MEMBERS.map(m => `<button class="chip${m.nickname === defaultName ? " on" : ""}" data-n="${esc(m.nickname)}">${esc(m.nickname)}</button>`).join("")}
+        </div>
         <button class="btn" id="askok" style="width:100%; margin-top:10px">⚔️ 이 닉네임으로 참가</button>
       </div>`;
       const done = v => { res(v); ov.remove(); };
-      ov.querySelector("#askok").onclick = () => done(ov.querySelector("#askn").value);
-      ov.querySelector("#askn").addEventListener("keydown", e => { if (e.key === "Enter") done(e.target.value); });
+      const inp = ov.querySelector("#askn");
+      // 이름 클릭 = 즉시 선택
+      ov.querySelectorAll("#asklist .chip").forEach(b => b.onclick = () => done(b.dataset.n));
+      // 타이핑하면 목록 필터 (부분 일치)
+      inp.addEventListener("input", () => {
+        const v = inp.value.trim();
+        ov.querySelectorAll("#asklist .chip").forEach(b => b.style.display = (!v || b.dataset.n.includes(v)) ? "" : "none");
+      });
+      ov.querySelector("#askok").onclick = () => done(inp.value);
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") done(inp.value); });
       ov.addEventListener("click", e => { if (e.target === ov) done(null); });
       document.body.appendChild(ov);
-      const inp = ov.querySelector("#askn"); inp.focus(); inp.select();
+      inp.focus(); inp.select();
     });
   }
   $("gojoin").onclick = async () => {
