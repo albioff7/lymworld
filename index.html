@@ -638,8 +638,8 @@ async function pageAdmin(key) {
       const g = (!ghost ? (a.gear || s.gear) : s.gear) || {};
       const stack = (inner, label) => `<div class="istack">${inner}<span class="ilbl">${esc((label || "").replace(/ ?스태프$/, ""))}</span></div>`; // 라벨은 '스태프' 생략해 짧게
       const gearStacks = GEAR_KEYS.map(k => {
-        if (g[k]) return stack(`<button class="ibox gearbox${ghost ? " ghost" : ""}" data-i="${i}" data-k="${k}"${ghost ? "" : ' draggable="true"'} title="장비 변경 (드래그=교환)">${iconImg(g[k])}</button>`, EMAP.get(g[k])?.name);
-        // 빈칸: 클릭해서 장비 지정
+        // 빈 슬롯은 장비 미리보기 없이 전부 ＋ 빈칸 (배정되면 그 사람의 장비 아이콘 표시)
+        if (!ghost && g[k]) return stack(`<button class="ibox gearbox" data-i="${i}" data-k="${k}" draggable="true" title="장비 변경 (드래그=교환)">${iconImg(g[k])}</button>`, EMAP.get(g[k])?.name);
         return stack(`<button class="ibox gearbox emptybox" data-i="${i}" data-k="${k}" title="${GEAR_KEY_CAT[k]} 선택">＋</button>`, GEAR_KEY_CAT[k]);
       }).join("");
       let wstack, who2;
