@@ -273,11 +273,11 @@ function iconImg(eid, size = 44) {
 // 역할순 정렬: 콜러 → 탱 → 힐러 → 서포터 → 딜러
 function posPrio(pos) {
   const p = String(pos);
-  if (p.includes("콜러")) return 0;
-  if (p.includes("탱")) return 1;
-  if (p.includes("힐")) return 2;
-  if (p.includes("서폿") || p.includes("서포터")) return 3;
-  return 4;
+  if (p.includes("콜러")) return 0;                       // 1순위
+  if (p.includes("서폿") || p.includes("서포터") || p.includes("탱")) return 1; // 2순위
+  if (p.includes("힐")) return 2;                          // 3순위
+  if (p.includes("딜")) return 3;                          // 4순위
+  return 4;                                                // 미정 등
 }
 const sortSlotIdx = slots => slots.map((s, i) => ({ s, i })).sort((a, b) => posPrio(a.s.pos) - posPrio(b.s.pos) || a.i - b.i).map(x => x.i);
 function pickEntity(title, ids, hl = new Set()) {
@@ -706,7 +706,7 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
-  const ROLES = ["콜러", "서포터", "근딜", "원딜", "힐러", "미정"];
+  const ROLES = ["콜러", "서포터", "힐러", "딜러", "미정"];
   // 텍스트 입력 모달 (특이사항 등)
   function askText(title, defaultVal) {
     return new Promise(res => {
@@ -818,7 +818,9 @@ async function pageAdmin(key) {
   $("mkev").onclick = async () => {
     const t = templates.find(x => x.id === $("tpl").value);
     const title = $("evtitle").value.trim() || t.name;
-    const rows = await post("events", { guild_id: G.id, template_id: t.id, title, starts_at: null, spec: t.spec, slots: t.slots, status: "open" });
+    // 원딜/근딜은 딜러로 통합해서 생성
+    const slots = t.slots.map(s => ({ ...s, pos: (s.pos === "원딜" || s.pos === "근딜") ? "딜러" : s.pos }));
+    const rows = await post("events", { guild_id: G.id, template_id: t.id, title, starts_at: null, spec: t.spec, slots, status: "open" });
     toast("이벤트 생성 완료 — 체크인 링크를 디코에 붙여넣으세요");
     events.unshift(rows[0]);
     openEvent(rows[0].id);
