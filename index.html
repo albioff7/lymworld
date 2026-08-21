@@ -393,7 +393,7 @@ async function pageHome() {
     </div>
     <div class="panel"><h2>진행 중인 이벤트</h2><div id="evs"></div></div>`;
   async function refreshHome() {
-    let events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=10&select=*,checkins(count)`);
+    let events = await get(`events?guild_id=eq.${G.id}&status=in.(open,confirmed)&order=created_at.desc&limit=10&select=*,checkins(count)`);
     const cutoff = Date.now() - 12 * 3600 * 1000; // 출발 후 12시간(시간 미지정은 생성 후 24시간) 지나면 자동 숨김
     events = events.filter(ev => ev.starts_at
       ? new Date(ev.starts_at).getTime() > cutoff
@@ -404,7 +404,7 @@ async function pageHome() {
       const n = ev.checkins?.[0]?.count ?? 0;
       const d = document.createElement("div");
       d.className = "evcard";
-      d.innerHTML = `<h3>${esc(ev.title)}<span class="badge open">모집 중 · ${n}명 신청</span></h3>
+      d.innerHTML = `<h3>${esc(ev.title)}<span class="badge ${ev.status === "confirmed" ? "confirmed" : "open"}">${ev.status === "confirmed" ? "🚀 출격 확정" : `모집 중 · ${n}명 신청`}</span></h3>
         <div class="sub">${ev.starts_at ? "출발 " + fmtTime(ev.starts_at) + " · " : ""}${esc(ev.spec || "")}</div>`;
       d.onclick = () => location.hash = `#/g/${G.slug}/e/${ev.id}`;
       box.appendChild(d);
@@ -668,7 +668,7 @@ async function pageAdmin(key) {
   // 컨텐츠 선택란: PVE/PVP 시트지 2종만 노출 (세부 콘텐츠 분류는 추후)
   const sheetTpls = templates.filter(t => t.name.includes("시트지"));
   if (sheetTpls.length) templates = sheetTpls;
-  const events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=15&select=*`);
+  const events = await get(`events?guild_id=eq.${G.id}&status=in.(open,confirmed)&order=created_at.desc&limit=15&select=*`);
 
   const BASE = location.href.split("#")[0];
   $("view").innerHTML = `
@@ -768,8 +768,9 @@ async function pageAdmin(key) {
   };
   $("sortie").onclick = async () => {
     if (!EV) return toast("출격할 컨텐츠가 없습니다");
-    // 출격 = 편성 확정: 기록으로 영구 저장. 시트지(보드)는 그대로 유지
-    await patch(`events?id=eq.${EV.id}`, { status: "done" });
+    // 출격 = 편성 확정 도장 (기록 인정 마커). 시트는 그대로 유지되고 새로고침에도 남음
+    await patch(`events?id=eq.${EV.id}`, { status: "confirmed" });
+    EV.status = "confirmed"; renderTabs();
     const ov = document.createElement("div"); ov.className = "modal";
     ov.innerHTML = `<div style="text-align:center">
       <div style="font-size:52px">🚀</div>
@@ -804,7 +805,7 @@ async function pageAdmin(key) {
     const bar = $("evtabs"); if (!bar) return;
     bar.innerHTML = '<span style="color:var(--muted); font-size:12px; margin-right:6px; white-space:nowrap">컨텐츠:</span>' +
       (events.length
-        ? events.map(e => `<button class="etab${EV && EV.id === e.id ? " on" : ""}" data-id="${e.id}">${esc(e.title)}<span class="tclose" data-id="${e.id}" title="이 컨텐츠 삭제">✕</span></button>`).join("")
+        ? events.map(e => `<button class="etab${EV && EV.id === e.id ? " on" : ""}" data-id="${e.id}">${e.status === "confirmed" ? "🚀 " : ""}${esc(e.title)}<span class="tclose" data-id="${e.id}" title="이 컨텐츠 삭제">✕</span></button>`).join("")
         : '<span class="hint">아직 컨텐츠가 없습니다 — 위에서 만드세요</span>');
     bar.querySelectorAll(".etab").forEach(t => t.onclick = () => openEvent(t.dataset.id));
     bar.querySelectorAll(".tclose").forEach(x => x.onclick = e => { e.stopPropagation(); deleteEvent(x.dataset.id); });
