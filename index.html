@@ -20,8 +20,8 @@
   .logotxt{display:flex; flex-direction:column; line-height:1.05}
   .lw{font-family:'Jua','IBM Plex Sans KR',sans-serif; font-size:34px; color:#E8A33D; text-shadow:2px 2px 0 #59391D; letter-spacing:.02em}
   .st{font-family:'Jua','IBM Plex Sans KR',sans-serif; font-size:15px; color:var(--gold); letter-spacing:.4em; margin-top:3px}
-  .btn.join{background:#2653D9; color:#fff; margin-left:auto}
-  .btn.join:hover{background:#3767F2}
+  .btn.join{background:transparent; color:#6C9BFF; border:1px solid #2653D9; margin-left:auto}
+  .btn.join:hover{background:rgba(38,83,217,.18)}
   .btn.sortie{
     background:linear-gradient(120deg,#F5C044,#E86A2C,#D9376E,#E86A2C,#F5C044);
     background-size:250% 100%; color:#fff; font-weight:800; letter-spacing:.04em;
@@ -593,7 +593,7 @@ async function pageAdmin(key) {
         <h1>🛡 콜러 대시보드</h1>
         <select id="tpl">${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
         <input type="text" id="evtitle" placeholder="이벤트 제목" style="min-width:150px">
-        <button class="btn" id="mkev">+ 컨텐츠 생성</button>
+        <button class="btn ghost" id="mkev">+ 컨텐츠 생성</button>
         <button class="btn sortie" id="sortie">🚀 출격</button>
         <button class="btn ghost sm pulse" id="openme" style="margin-left:auto">🗡 무기등록</button>
         <button class="btn join pulse" id="gojoin" style="margin-left:0">⚔️ 참가 신청</button>
@@ -602,7 +602,7 @@ async function pageAdmin(key) {
     <div class="evtabs" id="evtabs"></div>
     <div class="cols" id="board" style="display:none">
       <div class="panel">
-        <div class="row" style="margin-bottom:10px; align-items:center"><h2 style="margin:0">조합 슬롯</h2><button class="btn sm" id="auto">⚡ 자동 초안</button><button class="btn ghost sm" id="clearAll">배정 초기화</button></div>
+        <div class="row" style="margin-bottom:10px; align-items:center"><h2 style="margin:0">조합 슬롯</h2><button class="btn ghost sm" id="auto">⚡ 자동 초안</button><button class="btn ghost sm" id="clearAll">배정 초기화</button></div>
         <div id="slots"></div>
         <div class="row" style="margin-top:6px"><button class="btn ghost sm" id="addslot">＋ 인원 추가</button><button class="btn ghost sm" id="rmslot">－ 마지막 빈 슬롯 제거</button></div>
         <p class="hint">아이콘 클릭 = 변경 · 아이콘 드래그 = 두 사람 간 교환 · 이름 드래그 = 자리 교체</p></div>
