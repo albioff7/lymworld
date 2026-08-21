@@ -22,6 +22,15 @@
   .st{font-family:'Jua','IBM Plex Sans KR',sans-serif; font-size:15px; color:var(--gold); letter-spacing:.4em; margin-top:3px}
   .btn.join{background:#2653D9; color:#fff; margin-left:auto}
   .btn.join:hover{background:#3767F2}
+  .btn.sortie{
+    background:linear-gradient(120deg,#F5C044,#E86A2C,#D9376E,#E86A2C,#F5C044);
+    background-size:250% 100%; color:#fff; font-weight:800; letter-spacing:.04em;
+    text-shadow:0 1px 2px rgba(0,0,0,.45); box-shadow:0 0 14px 2px rgba(232,106,44,.5);
+    animation:sortieShift 2.8s linear infinite;
+  }
+  .btn.sortie:hover{box-shadow:0 0 20px 4px rgba(232,106,44,.75)}
+  @keyframes sortieShift{ 0%{background-position:0% 50%} 100%{background-position:250% 50%} }
+  @media (prefers-reduced-motion: reduce){ .btn.sortie{animation:none} }
   @keyframes pulseGlow{
     0%,100%{opacity:1; box-shadow:0 0 0 0 rgba(201,162,51,0)}
     50%{opacity:.75; box-shadow:0 0 12px 3px rgba(201,162,51,.5)}
@@ -533,6 +542,7 @@ async function pageAdmin(key) {
         <select id="tpl">${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
         <input type="text" id="evtitle" placeholder="이벤트 제목" style="min-width:150px">
         <button class="btn" id="mkev">+ 컨텐츠 생성</button>
+        <button class="btn sortie" id="sortie">🚀 출격</button>
         <button class="btn ghost sm pulse" id="openme" style="margin-left:auto">🗡 무기등록</button>
         <button class="btn join pulse" id="gojoin" style="margin-left:0">⚔️ 참가 신청</button>
       </div>
@@ -551,6 +561,17 @@ async function pageAdmin(key) {
   $("gojoin").onclick = () => {
     if (!EV) return toast("이벤트를 먼저 만드세요");
     location.hash = `#/g/${G.slug}/e/${EV.id}`;
+  };
+  $("sortie").onclick = async () => {
+    if (!EV) return toast("출격할 컨텐츠가 없습니다");
+    // 출격 = 편성 확정: 기록으로 영구 저장(출석 집계·통계 원료), 화면에서는 정리
+    await patch(`events?id=eq.${EV.id}`, { status: "done" });
+    const ei = events.findIndex(e => e.id === EV.id); if (ei >= 0) events.splice(ei, 1);
+    toast("🚀 출격! 이 편성은 기록으로 저장됐습니다");
+    EV = null;
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (events.length) openEvent(events[0].id);
+    else { $("board").style.display = "none"; renderTabs(); }
   };
   $("addslot").onclick = async () => {
     if (!EV) return toast("이벤트를 먼저 만드세요");
@@ -578,10 +599,11 @@ async function pageAdmin(key) {
   }
   async function deleteEvent(id) {
     const target = events.find(e => e.id === id); if (!target) return;
-    // 완전 삭제가 아닌 보관 처리: 화면에서만 사라지고 체크인·배정 기록은 출석 집계용으로 보존
-    await patch(`events?id=eq.${id}`, { status: "done" });
+    // ✕ = 완전 삭제 (기록 없음). 기록으로 남기려면 🚀 출격 사용
+    const gone = await api(`events?id=eq.${id}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
+    if (!gone || !gone.length) return toast("삭제 권한이 없습니다");
     const ei = events.findIndex(e => e.id === id); if (ei >= 0) events.splice(ei, 1);
-    toast("보관했습니다 (기록은 출석 집계에 남습니다)");
+    toast("삭제했습니다 (기록 없음)");
     if (EV && EV.id === id) {
       EV = null;
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
