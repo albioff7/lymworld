@@ -406,7 +406,7 @@ async function pageCheckin(eventId) {
         <select id="who"><option value="">— 내 닉네임 —</option>${MEMBERS.map(m => `<option value="${m.id}">${esc(m.nickname)}</option>`).join("")}</select>
         <input type="text" id="newnick" placeholder="목록에 없으면 새 닉네임" maxlength="20"><button class="btn ghost sm" id="addnick">추가</button>
       </div>
-      <h2 style="margin-top:14px">오늘 낼 수 있는 무기 (복수 선택) <span style="color:var(--warn); text-transform:none">— 붉은 점은 이번 조합에 필요한 무기</span></h2>
+      <h2 style="margin-top:14px">유저 선호 무기 (복수 선택) <span style="color:var(--warn); text-transform:none">— 붉은 점은 이번 조합에 필요한 무기</span></h2>
       <div class="chips" id="myweps"><span class="hint">닉네임을 선택하면 등록된 무기가 나옵니다</span></div>
       <div class="row" style="margin-top:10px">
         <button class="chip" id="deleg">🤝 아무거나 (콜러에게 맡김)</button>
@@ -719,7 +719,7 @@ async function pageAdmin(key) {
       const today = new Set([a.entity_id, ...(ci ? candWeapons(ci) : (m?.member_entities || []).map(x => x.entity_id))].filter(Boolean));
       const allWeps = ENTITIES.filter(x => !GEAR_CATS.includes(x.category)).map(x => x.id);
       const ids = [...new Set([...today, ...allWeps])];
-      const sel = await pickEntity(`${m?.nickname || ""} — 무기 선택 (금색 = 오늘 낼 수 있는 무기)`, ids, today);
+      const sel = await pickEntity(`${m?.nickname || ""} — 무기 선택 (금색 = 유저 선호 무기)`, ids, today);
       if (!sel || sel === a.entity_id) return;
       ASSIGN[i].entity_id = sel;
       await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(i));
@@ -754,7 +754,7 @@ async function pageAdmin(key) {
     if (!eid) {
       const pool = c ? candWeapons(c) : [];
       eid = (req.type === "entity" ? req.value : ENTITIES.find(x => x.category === req.value)?.id) || pool[0] || null;
-      toast("오늘 낸 무기와 다른 슬롯입니다 — 무기 아이콘을 눌러 조정하세요");
+      toast("유저 선호 무기와 다른 슬롯입니다 — 무기 아이콘을 눌러 조정하세요");
     }
     let carryGear = null; // 이미 배정돼 있던 사람이면 장비 세트가 같이 따라간다
     for (const k of Object.keys(ASSIGN)) if (ASSIGN[k].member_id === mid) { carryGear = ASSIGN[k].gear ?? null; await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${k}`); delete ASSIGN[k]; }
