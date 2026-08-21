@@ -687,7 +687,6 @@ async function pageAdmin(key) {
   $("view").innerHTML = `
     <div class="panel compact">
       <div class="row">
-        <h1>🛡 콜러 대시보드</h1>
         <select id="tpl">${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
         <input type="text" id="evtitle" placeholder="제목" style="min-width:150px">
         <button class="btn ghost" id="mkev">+ 컨텐츠 생성</button>
@@ -782,14 +781,17 @@ async function pageAdmin(key) {
   };
   $("sortie").onclick = async () => {
     if (!EV) return toast("출격할 컨텐츠가 없습니다");
-    // 출격 = 편성 확정: 기록으로 영구 저장(출석 집계·통계 원료), 화면에서는 정리
+    // 출격 = 편성 확정: 기록으로 영구 저장. 시트지(보드)는 그대로 유지
     await patch(`events?id=eq.${EV.id}`, { status: "done" });
-    const ei = events.findIndex(e => e.id === EV.id); if (ei >= 0) events.splice(ei, 1);
-    toast("🚀 출격! 이 편성은 기록으로 저장됐습니다");
-    EV = null;
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    if (events.length) openEvent(events[0].id);
-    else showEmptyBoard();
+    const ov = document.createElement("div"); ov.className = "modal";
+    ov.innerHTML = `<div style="text-align:center">
+      <div style="font-size:52px">🚀</div>
+      <div style="font-family:'Noto Serif KR',serif; font-size:34px; font-weight:900; color:var(--gold); text-shadow:0 0 24px rgba(201,162,51,.45); margin-top:10px">건승하시기 바랍니다</div>
+      <p style="color:var(--muted); font-size:13.5px; margin-top:8px">편성 기록이 저장됐습니다</p>
+    </div>`;
+    ov.addEventListener("click", () => ov.remove());
+    document.body.appendChild(ov);
+    setTimeout(() => ov.remove(), 2200);
   };
   function showEmptyBoard() {
     $("board").style.display = "none";
