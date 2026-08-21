@@ -215,10 +215,10 @@ async function route() {
   try {
     if (p[0] === "g" && p[1]) {
       await loadGuild(p[1]);
-      if (p[2] === "e" && p[3]) return pageCheckin(p[3]);
-      if (p[2] === "me") return pageRegister();
-      if (p[2] === "admin" && p[3]) return pageAdmin(p[3]);
-      return pageHome();
+      if (p[2] === "e" && p[3]) return await pageCheckin(p[3]);
+      if (p[2] === "me") return await pageRegister();
+      if (p[2] === "admin" && p[3]) return await pageAdmin(p[3]);
+      return await pageHome();
     }
     v.innerHTML = '<div class="center">주소가 올바르지 않습니다. 길드 링크로 접속해주세요.<br>예: <b>app.html#/g/lym</b></div>';
   } catch (e) {
@@ -481,6 +481,7 @@ async function pageAdmin(key) {
       <div class="panel"><h2>체크인 <b id="cicnt2"></b></h2><div id="pool"></div><p class="hint">참가자를 슬롯으로 드래그해서 배정 (클릭→클릭도 가능)</p></div>
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
+  let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
   function renderTabs() {
     const bar = $("evtabs"); if (!bar) return;
     bar.innerHTML = '<span style="color:var(--muted); font-size:12px; margin-right:6px; white-space:nowrap">이벤트:</span>' +
@@ -490,8 +491,6 @@ async function pageAdmin(key) {
     bar.querySelectorAll(".etab").forEach(t => t.onclick = () => openEvent(t.dataset.id));
   }
   renderTabs();
-
-  let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
 
   $("mkev").onclick = async () => {
     const t = templates.find(x => x.id === $("tpl").value);
