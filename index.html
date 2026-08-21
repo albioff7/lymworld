@@ -64,6 +64,7 @@
   .mem .sub{font-size:12px; color:var(--muted); margin-top:2px}
   .wtag{display:inline-block; font-size:11px; background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:var(--muted); margin:2px 3px 0 0}
   .wtag.hit{border-color:var(--gold-deep); color:var(--gold)}
+  .wtag.catfull{background:var(--gold); border-color:var(--gold); color:#191509; font-weight:700; font-size:12px; padding:2px 9px}
   .slot{background:var(--raised); border:1px dashed var(--line); border-radius:8px; padding:9px 12px; margin-bottom:7px; cursor:pointer}
   .slot.sel{border-color:var(--gold); border-style:solid}
   .slot.over{border-color:var(--gold); border-style:solid; background:var(--gold-soft)}
@@ -210,6 +211,8 @@ async function loadGuild(slug) {
   MYKEY = "sasi-me-" + G.id;
   ENTITIES = await get(`entities?game_id=eq.${G.game_id}&active=is.true&order=category,sort_order&select=id,name,category,icon`);
   EMAP = new Map(ENTITIES.map(e => [e.id, e]));
+  CAT_TOTAL = {};
+  for (const e of ENTITIES) CAT_TOTAL[e.category] = (CAT_TOTAL[e.category] || 0) + 1;
   // "아무거나" 가상 장비 (재질별 기본 아이콘) — DB에는 없고 화면 전용
   const PSEUDO_ANY = [
     ["any_cloth_head", "HEAD_CLOTH_SET1", "머리"], ["any_leather_head", "HEAD_LEATHER_SET1", "머리"], ["any_plate_head", "HEAD_PLATE_SET1", "머리"],
@@ -220,6 +223,18 @@ async function loadGuild(slug) {
   for (const [id, icon, category] of PSEUDO_ANY) EMAP.set(id, { id, name: "아무거나", category, icon });
 }
 const GEAR_CATS = ["머리", "갑옷", "신발", "망토"];
+let CAT_TOTAL = {};
+// 계열 전체를 선택한 경우 [검] 하나로 압축
+function summarizeWeapons(ids) {
+  const byCat = {};
+  for (const id of ids) { const c = EMAP.get(id)?.category; if (!c) continue; (byCat[c] ??= []).push(id); }
+  const fullCats = [], rest = [];
+  for (const [c, list] of Object.entries(byCat)) {
+    if (CAT_TOTAL[c] && list.length === CAT_TOTAL[c]) fullCats.push(c);
+    else rest.push(...list);
+  }
+  return { fullCats, rest };
+}
 const GEAR_KEYS = ["armor", "head", "shoes", "cape"]; // 표시 순서: 갑옷-머리-신발-망토
 const GEAR_KEY_CAT = { armor: "갑옷", head: "머리", shoes: "신발", cape: "망토" };
 function goHome() {
@@ -590,8 +605,13 @@ async function pageCheckin(eventId) {
     const rows = await get(`checkins?event_id=eq.${eventId}&order=created_at&select=entity_ids,delegate,memo,is_late,members(nickname)`);
     $("cicnt").textContent = `${rows.length}명`;
     $("roster").innerHTML = rows.map(c => {
-      const weps = c.delegate ? "아무거나 🤝" : c.entity_ids.map(id => EMAP.get(id)?.name || id).join(", ");
-      return `<li><b>${esc(c.members.nickname)}</b> — ${esc(weps)}${c.memo ? ` <span class="hint">(${esc(c.memo)})</span>` : ""}${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각신청</span>' : ""}</li>`;
+      let weps;
+      if (c.delegate) weps = "아무거나 🤝";
+      else {
+        const { fullCats, rest } = summarizeWeapons(c.entity_ids);
+        weps = [...fullCats.map(cn => `<b style="color:var(--gold)">[${esc(cn)}]</b>`), ...rest.map(id => esc(EMAP.get(id)?.name || id))].join(", ");
+      }
+      return `<li><b>${esc(c.members.nickname)}</b> — ${weps}${c.memo ? ` <span class="hint">(${esc(c.memo)})</span>` : ""}${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각신청</span>' : ""}</li>`;
     }).join("") || '<span class="hint">아직 아무도 신청하지 않았습니다 — 첫 번째가 되어보세요!</span>';
     // 배정 현황 (읽기 전용, 내 자리 강조)
     const asg = await get(`assignments?event_id=eq.${eventId}&select=*`);
@@ -794,8 +814,13 @@ async function pageAdmin(key) {
       const d = document.createElement("div"); d.className = "mem" + (picked === mid ? " sel" : "");
       if (used.has(mid)) d.style.opacity = ".35";
       else free++;
-      const weps = c.delegate ? '<span class="wtag hit">아무거나 🤝</span>' :
-        c.entity_ids.map(id => `<span class="wtag${needs.has(id) ? " hit" : ""}">${esc(EMAP.get(id)?.name || id)}</span>`).join("");
+      let weps;
+      if (c.delegate) weps = '<span class="wtag hit">아무거나 🤝</span>';
+      else {
+        const { fullCats, rest } = summarizeWeapons(c.entity_ids);
+        weps = fullCats.map(cn => `<span class="wtag catfull">${esc(cn)}</span>`).join("") +
+          rest.map(id => `<span class="wtag${needs.has(id) ? " hit" : ""}">${esc(EMAP.get(id)?.name || id)}</span>`).join("");
+      }
       d.innerHTML = `<span class="nm">${esc(c.members.nickname)}</span>${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각</span>' : ""}<div>${weps}</div>${c.memo ? `<div class="sub">💬 ${esc(c.memo)}</div>` : ""}`;
       d.draggable = !used.has(mid);
       d.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", "m:" + mid));
