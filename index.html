@@ -99,8 +99,9 @@
   .slotrow{display:flex; align-items:flex-start; gap:10px}
   .posbox{width:58px; flex:none; display:flex; flex-direction:column; padding-top:6px}
   .posbox .pos{color:var(--gold); font-weight:700; font-size:13.5px}
-  .posedit{cursor:pointer}
-  .posedit:hover{text-decoration:underline dotted}
+  select.posedit{background:transparent; border:none; color:var(--gold); font-weight:700; font-size:13px; font-family:inherit; cursor:pointer; padding:0; max-width:58px}
+  select.posedit:hover{text-decoration:underline dotted}
+  select.posedit option{background:var(--surface); color:var(--ink)}
   .posbox .reqlbl{font-size:10px; color:var(--muted); line-height:1.25}
   .slotrow .icons{flex:1; gap:6px; flex-wrap:nowrap; justify-content:space-between; align-items:flex-start}
   .slotrow .ibox{width:48px; height:48px}
@@ -703,24 +704,7 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
-  // 포지션 선택 모달 (원클릭)
-  function askRole(cur) {
-    const ROLES = ["콜러", "메인탱", "디펜탱", "오펜탱", "근딜", "원딜", "딜러", "힐러", "서포터", "자유"];
-    return new Promise(res => {
-      const ov = document.createElement("div"); ov.className = "modal";
-      ov.innerHTML = `<div class="box" style="max-width:360px">
-        <h3>포지션 선택</h3>
-        <div class="chips" style="margin-bottom:12px">${ROLES.map(r => `<button class="chip rolechip${r === cur ? " on" : ""}" data-r="${r}">${r}</button>`).join("")}</div>
-        <div class="row"><input type="text" id="rolecustom" placeholder="직접 입력" maxlength="10" style="flex:1"><button class="btn sm" id="roleok">확인</button></div>
-      </div>`;
-      const done = v => { res(v); ov.remove(); };
-      ov.querySelectorAll(".rolechip").forEach(b => b.onclick = () => done(b.dataset.r));
-      ov.querySelector("#roleok").onclick = () => done(ov.querySelector("#rolecustom").value);
-      ov.querySelector("#rolecustom").addEventListener("keydown", e => { if (e.key === "Enter") done(e.target.value); });
-      ov.addEventListener("click", e => { if (e.target === ov) done(null); });
-      document.body.appendChild(ov);
-    });
-  }
+  const ROLES = ["콜러", "서포터", "근딜", "원딜", "힐러", "미정"];
   // 텍스트 입력 모달 (특이사항 등)
   function askText(title, defaultVal) {
     return new Promise(res => {
@@ -791,7 +775,7 @@ async function pageAdmin(key) {
   };
   $("addslot").onclick = async () => {
     if (!EV) return toast("이벤트를 먼저 만드세요");
-    EV.slots.push({ pos: "추가", require: { type: "any", value: "", label: "자유" }, gear: null });
+    EV.slots.push({ pos: "미정", require: { type: "any", value: "", label: "미정" }, gear: null });
     await patch(`events?id=eq.${EV.id}`, { slots: EV.slots });
     renderSlots(); renderMsg(); toast("슬롯을 추가했습니다 (역할: 추가/자유)");
   };
@@ -946,7 +930,12 @@ async function pageAdmin(key) {
         who2 = `<div class="who2"><span class="empty">비어 있음</span></div>`;
       }
       el.innerHTML = `<div class="slotrow">
-        <div class="posbox"><span class="pos posedit" data-i="${i}" title="클릭해서 포지션 이름 변경">${esc(s.pos)}</span><span class="reqlbl">${s.require.type === "entity" ? esc(s.require.label) : ""}</span></div>
+        <div class="posbox">
+          <select class="posedit" data-i="${i}" title="포지션 선택">
+            ${ROLES.map(r => `<option${r === s.pos ? " selected" : ""}>${r}</option>`).join("")}
+            ${ROLES.includes(s.pos) ? "" : `<option selected>${esc(s.pos)}</option>`}
+          </select>
+          <span class="reqlbl">${s.require.type === "entity" ? esc(s.require.label) : ""}</span></div>
         <div class="icons">${wstack}${gearStacks}</div>
         ${who2}</div>`;
       el.onclick = e => {
@@ -972,14 +961,14 @@ async function pageAdmin(key) {
       if (ASSIGN[i]?.id) await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${i}`);
       delete ASSIGN[i]; renderAll();
     });
-    box.querySelectorAll(".posedit").forEach(p => p.onclick = async e => {
-      e.stopPropagation();
-      const i = +p.dataset.i;
-      const t = await askRole(EV.slots[i].pos);
-      if (t == null || !t.trim()) return;
-      EV.slots[i].pos = t.trim().slice(0, 10);
-      await patch(`events?id=eq.${EV.id}`, { slots: EV.slots });
-      renderSlots(); renderMsg();
+    box.querySelectorAll(".posedit").forEach(p => {
+      p.addEventListener("click", e => e.stopPropagation());
+      p.onchange = async () => {
+        const i = +p.dataset.i;
+        EV.slots[i].pos = p.value;
+        await patch(`events?id=eq.${EV.id}`, { slots: EV.slots });
+        renderSlots(); renderMsg();
+      };
     });
     box.querySelectorAll('.nm[draggable="true"]').forEach(n => n.addEventListener("dragstart", e => {
       e.stopPropagation();
