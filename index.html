@@ -210,6 +210,14 @@ async function loadGuild(slug) {
   MYKEY = "sasi-me-" + G.id;
   ENTITIES = await get(`entities?game_id=eq.${G.game_id}&active=is.true&order=category,sort_order&select=id,name,category,icon`);
   EMAP = new Map(ENTITIES.map(e => [e.id, e]));
+  // "아무거나" 가상 장비 (재질별 기본 아이콘) — DB에는 없고 화면 전용
+  const PSEUDO_ANY = [
+    ["any_cloth_head", "HEAD_CLOTH_SET1", "머리"], ["any_leather_head", "HEAD_LEATHER_SET1", "머리"], ["any_plate_head", "HEAD_PLATE_SET1", "머리"],
+    ["any_cloth_armor", "ARMOR_CLOTH_SET1", "갑옷"], ["any_leather_armor", "ARMOR_LEATHER_SET1", "갑옷"], ["any_plate_armor", "ARMOR_PLATE_SET1", "갑옷"],
+    ["any_cloth_shoes", "SHOES_CLOTH_SET1", "신발"], ["any_leather_shoes", "SHOES_LEATHER_SET1", "신발"], ["any_plate_shoes", "SHOES_PLATE_SET1", "신발"],
+    ["any_cape", "CAPE", "망토"],
+  ];
+  for (const [id, icon, category] of PSEUDO_ANY) EMAP.set(id, { id, name: "아무거나", category, icon });
 }
 const GEAR_CATS = ["머리", "갑옷", "신발", "망토"];
 const GEAR_KEYS = ["armor", "head", "shoes", "cape"]; // 표시 순서: 갑옷-머리-신발-망토
@@ -882,7 +890,8 @@ async function pageAdmin(key) {
       e.stopPropagation();
       const i = +b.dataset.i, k = b.dataset.k;
       const catName = GEAR_KEY_CAT[k];
-      const ids = ENTITIES.filter(x => x.category === catName).map(x => x.id);
+      const anyIds = [...EMAP.values()].filter(x => x.id.startsWith("any_") && x.category === catName).map(x => x.id);
+      const ids = [...anyIds, ...ENTITIES.filter(x => x.category === catName).map(x => x.id)];
       const sel = await pickEntity(`${EV.slots[i].pos} — ${catName} 변경`, ids);
       if (!sel) return;
       if (ASSIGN[i] && ASSIGN[i].member_id) {
