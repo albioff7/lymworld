@@ -523,7 +523,7 @@ async function pageAdmin(key) {
   $("crumb").textContent = G.name + " · 콜러 대시보드";
   await loadMembers();
   const templates = await get(`templates?game_id=eq.${G.game_id}&or=(guild_id.eq.${G.id},guild_id.is.null)&order=created_at&select=*`);
-  const events = await get(`events?guild_id=eq.${G.id}&status=neq.canceled&order=created_at.desc&limit=15&select=*`);
+  const events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=15&select=*`);
 
   const BASE = location.href.split("#")[0];
   $("view").innerHTML = `
@@ -578,10 +578,10 @@ async function pageAdmin(key) {
   }
   async function deleteEvent(id) {
     const target = events.find(e => e.id === id); if (!target) return;
-    const gone = await api(`events?id=eq.${id}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
-    if (!gone || !gone.length) return toast("삭제 권한이 없습니다");
+    // 완전 삭제가 아닌 보관 처리: 화면에서만 사라지고 체크인·배정 기록은 출석 집계용으로 보존
+    await patch(`events?id=eq.${id}`, { status: "done" });
     const ei = events.findIndex(e => e.id === id); if (ei >= 0) events.splice(ei, 1);
-    toast("삭제했습니다");
+    toast("보관했습니다 (기록은 출석 집계에 남습니다)");
     if (EV && EV.id === id) {
       EV = null;
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
