@@ -906,7 +906,7 @@ async function pageAdmin(key) {
         who2 = `<div class="who2"><span class="empty">비어 있음</span></div>`;
       }
       el.innerHTML = `<div class="slotrow">
-        <div class="posbox"><span class="pos">${esc(s.pos)}</span><span class="reqlbl">${esc(s.require.label)}</span></div>
+        <div class="posbox"><span class="pos">${esc(s.pos)}</span><span class="reqlbl">${s.require.type === "entity" ? esc(s.require.label) : ""}</span></div>
         <div class="icons">${wstack}${gearStacks}</div>
         ${who2}</div>`;
       el.onclick = e => {
