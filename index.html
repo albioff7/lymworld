@@ -389,7 +389,7 @@ async function pageRegister() {
     <div class="panel">
       <div class="row" style="justify-content:space-between">
         <h1>내 무기 등록</h1>
-        ${backBtn(`#/g/${G.slug}`)}
+        <button class="btn ghost sm" id="regback">← 뒤로</button>
       </div>
       <p class="hint">닉네임을 고르고, 플레이 가능한 무기를 전부 선택한 뒤 저장하세요. (한 번만 하면 됩니다)</p>
       <div class="row" style="margin-top:10px">
@@ -398,7 +398,7 @@ async function pageRegister() {
         <button class="btn ghost sm" id="addnick">새로 등록</button>
       </div>
     </div>
-    <div class="panel"><h2>무기 선택 <span id="selcnt" style="color:var(--gold)"></span></h2>
+    <div class="panel"><h2>무기 선택 <span id="selcnt" style="color:var(--gold)"></span> <span id="savestat" class="hint" style="text-transform:none"></span></h2>
       <input type="text" id="q" placeholder="무기 검색 (예: 미피, 폴해머)" style="width:100%; margin-bottom:8px">
       <div id="cats"></div>
     </div>
@@ -414,7 +414,7 @@ async function pageRegister() {
     for (const e of list) {
       const b = document.createElement("button"); b.className = "wtile"; b.dataset.id = e.id; b.dataset.name = e.name;
       b.innerHTML = (iconUrl(e.id) ? `<img src="${iconUrl(e.id, 44)}" alt="" loading="lazy">` : "") + esc(e.name.replace(/ ?스태프$/, ""));
-      b.onclick = () => { b.classList.toggle("on") ? selected.add(e.id) : selected.delete(e.id); $("selcnt").textContent = `(${selected.size}개)`; };
+      b.onclick = () => { b.classList.toggle("on") ? selected.add(e.id) : selected.delete(e.id); $("selcnt").textContent = `(${selected.size}개)`; queueSave(); };
       chips.appendChild(b);
     }
     d.appendChild(chips); catBox.appendChild(d);
@@ -427,7 +427,23 @@ async function pageRegister() {
         allOn ? selected.delete(b.dataset.id) : selected.add(b.dataset.id);
       }
       $("selcnt").textContent = `(${selected.size}개)`;
+      queueSave();
     };
+  }
+  // ── 자동 저장: 클릭할 때마다 0.7초 뒤 저장, 뒤로가기 시에도 저장 ──
+  let curMid = "", saveTimer = null, dirty = false;
+  async function saveNow() {
+    if (!curMid || !dirty || !selected.size) return;
+    dirty = false;
+    await del(`member_entities?member_id=eq.${curMid}`);
+    await post("member_entities", [...selected].map(eid => ({ member_id: curMid, entity_id: eid })), "return=minimal");
+    localStorage.setItem(MYKEY, curMid);
+    const st = $("savestat"); if (st) { st.textContent = "✓ 자동 저장됨"; setTimeout(() => { if (st.textContent === "✓ 자동 저장됨") st.textContent = ""; }, 2000); }
+  }
+  function queueSave() {
+    if (!curMid) return;
+    dirty = true; clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 700);
   }
   $("q").oninput = e => {
     const q = e.target.value.trim();
@@ -440,25 +456,31 @@ async function pageRegister() {
     for (const eid of memberWeapons(m)) { selected.add(eid); const c = document.querySelector(`#cats .wtile[data-id="${eid}"]`); if (c) c.classList.add("on"); }
     $("selcnt").textContent = `(${selected.size}개)`;
   }
-  $("who").onchange = e => loadSel(e.target.value);
-  if (savedId && MEMBERS.some(m => m.id === savedId)) { $("who").value = savedId; loadSel(savedId); }
+  $("who").onchange = async e => {
+    clearTimeout(saveTimer); await saveNow(); // 사람 바꾸기 전에 이전 사람 것 저장
+    curMid = e.target.value; dirty = false;
+    loadSel(curMid);
+  };
+  if (savedId && MEMBERS.some(m => m.id === savedId)) { $("who").value = savedId; curMid = savedId; loadSel(savedId); }
   $("addnick").onclick = async () => {
     const nick = $("newnick").value.trim(); if (!nick) return toast("닉네임을 입력해주세요");
     try {
       const rows = await post("members", { guild_id: G.id, nickname: nick });
       await loadMembers();
       $("who").innerHTML = `<option value="">— 내 닉네임 선택 —</option>` + MEMBERS.map(m => `<option value="${m.id}">${esc(m.nickname)}</option>`).join("");
-      $("who").value = rows[0].id; loadSel(rows[0].id); toast("등록됐습니다. 무기를 선택하고 저장하세요!");
+      $("who").value = rows[0].id; curMid = rows[0].id; loadSel(rows[0].id); toast("등록됐습니다. 무기를 선택하면 자동 저장됩니다!");
     } catch (e) { toast(e.message.includes("duplicate") ? "이미 있는 닉네임입니다. 목록에서 선택하세요" : "등록 실패: " + e.message); }
   };
   $("save").onclick = async () => {
-    const mid = $("who").value; if (!mid) return toast("닉네임을 먼저 선택해주세요");
+    if (!curMid) return toast("닉네임을 먼저 선택해주세요");
     if (!selected.size) return toast("무기를 1개 이상 선택해주세요");
-    await del(`member_entities?member_id=eq.${mid}`);
-    await post("member_entities", [...selected].map(eid => ({ member_id: mid, entity_id: eid })), "return=minimal");
-    localStorage.setItem(MYKEY, mid);
+    clearTimeout(saveTimer); dirty = true; await saveNow();
     toast(`저장 완료 — 무기 ${selected.size}개 등록됨`);
-    setTimeout(() => goBack(`#/g/${G.slug}`), 900);
+    setTimeout(() => goBack(`#/g/${G.slug}`), 700);
+  };
+  $("regback").onclick = async () => {
+    clearTimeout(saveTimer); await saveNow(); // 뒤로가기 전에 저장
+    goBack(`#/g/${G.slug}`);
   };
 }
 
