@@ -52,8 +52,7 @@
   .slot .empty{color:#4a5058; font-size:13px; margin-top:3px}
   .pinbtn{background:none;border:none;cursor:pointer;font-size:13px;padding:0 3px}
   .x{background:none; border:none; color:var(--warn); cursor:pointer; font-size:13px; padding:0 4px}
-  .cols{display:grid; grid-template-columns:1.35fr 1fr 1fr 0.9fr; gap:10px}
-  @media(max-width:1200px){.cols{grid-template-columns:1fr 1fr}}
+  .cols{display:grid; grid-template-columns:1.5fr 1fr; gap:12px}
   @media(max-width:760px){.cols{grid-template-columns:1fr}}
   .compact{padding:9px 14px}
   .compact h1{font-size:15px; margin:0}
@@ -208,8 +207,10 @@ async function route() {
 async function pageHome() {
   $("crumb").textContent = G.name;
   let events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=10&select=*`);
-  const cutoff = Date.now() - 12 * 3600 * 1000; // 출발 후 12시간 지나면 자동 숨김
-  events = events.filter(ev => !ev.starts_at || new Date(ev.starts_at).getTime() > cutoff);
+  const cutoff = Date.now() - 12 * 3600 * 1000; // 출발 후 12시간(시간 미지정은 생성 후 24시간) 지나면 자동 숨김
+  events = events.filter(ev => ev.starts_at
+    ? new Date(ev.starts_at).getTime() > cutoff
+    : new Date(ev.created_at).getTime() > Date.now() - 24 * 3600 * 1000);
   $("view").innerHTML = `
     <div class="panel">
       <h1>⚔️ ${esc(G.name)}</h1>
@@ -415,11 +416,11 @@ async function pageAdmin(key) {
         <h1>🛡 콜러 대시보드</h1>
         <select id="tpl">${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
         <input type="text" id="evtitle" placeholder="이벤트 제목" style="min-width:150px">
-        <input type="datetime-local" id="evtime">
         <button class="btn" id="mkev">+ 이벤트 만들기</button>
         <span style="color:var(--line)">|</span>
-        <select id="evsel"><option value="">— 이벤트 선택 —</option>${events.map(e => `<option value="${e.id}">${esc(e.title)}${e.starts_at ? " · " + fmtTime(e.starts_at) : ""}</option>`).join("")}</select>
+        <button class="btn sm" id="copymsg">📋 결과 복사</button>
         <button class="btn ghost sm" id="copyurl">체크인 링크 복사</button>
+        <button class="btn ghost sm" id="openme">🗡 내 무기 등록</button>
         <button class="btn ghost sm" id="delev" style="color:var(--warn); border-color:var(--warn)">🗑 삭제</button>
       </div>
     </div>
@@ -428,44 +429,19 @@ async function pageAdmin(key) {
         <div class="row" style="margin-bottom:8px"><button class="btn sm" id="auto">⚡ 자동 초안</button><button class="btn ghost sm" id="clearAll">배정 초기화</button></div>
         <div id="slots"></div><p class="hint">📌 핀 고정 · 아이콘 드래그 = 두 사람 간 교환 · 아이콘 클릭 = 변경</p></div>
       <div class="panel"><h2>체크인 <b id="cicnt2"></b></h2><div id="pool"></div><p class="hint">참가자를 슬롯으로 드래그해서 배정 (클릭→클릭도 가능)</p></div>
-      <div class="panel"><h2>디스코드 발송문</h2><div class="disc"><pre id="msg"></pre></div>
-        <button class="btn" style="width:100%; margin-top:8px" id="copymsg">📋 결과 복사</button></div>
-      <div class="panel"><h2>길드 홈</h2>
-        <div class="row" style="margin-bottom:10px">
-          <button class="btn ghost sm" id="openme">🗡 내 무기 등록</button>
-          <button class="btn ghost sm" id="copyhome">🔗 길드 홈 링크 복사</button>
-        </div>
-        <h2>진행 중 이벤트</h2>
-        <div id="openevs"></div>
-        <p class="hint">클릭하면 그 이벤트를 대시보드에 불러옵니다</p>
-      </div>
     </div>`;
   $("openme").onclick = () => window.open(BASE + `#/g/${G.slug}/me`, "_blank");
-  $("copyhome").onclick = () => navigator.clipboard.writeText(BASE + `#/g/${G.slug}`).then(() => toast("길드 홈 링크 복사됨 — 길드원에게 공유하세요"));
-  function renderOpenEvents() {
-    const cutoff = Date.now() - 12 * 3600 * 1000;
-    const list = events.filter(e => e.status === "open" && (!e.starts_at || new Date(e.starts_at).getTime() > cutoff));
-    $("openevs").innerHTML = list.map(e =>
-      `<div class="evmini" data-id="${e.id}"><span class="t">${esc(e.title)}</span><div class="s">${e.starts_at ? "출발 " + fmtTime(e.starts_at) : ""} ${esc(e.spec || "")}</div></div>`
-    ).join("") || '<p class="hint">열린 이벤트가 없습니다</p>';
-    $("openevs").querySelectorAll(".evmini").forEach(d => d.onclick = () => { $("evsel").value = d.dataset.id; openEvent(d.dataset.id); });
-  }
-  renderOpenEvents();
 
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
 
   $("mkev").onclick = async () => {
     const t = templates.find(x => x.id === $("tpl").value);
     const title = $("evtitle").value.trim() || t.name;
-    const starts = $("evtime").value ? new Date($("evtime").value).toISOString() : null;
-    const rows = await post("events", { guild_id: G.id, template_id: t.id, title, starts_at: starts, spec: t.spec, slots: t.slots, status: "open" });
+    const rows = await post("events", { guild_id: G.id, template_id: t.id, title, starts_at: null, spec: t.spec, slots: t.slots, status: "open" });
     toast("이벤트 생성 완료 — 체크인 링크를 디코에 붙여넣으세요");
-    const opt = document.createElement("option"); opt.value = rows[0].id; opt.textContent = title;
-    $("evsel").insertBefore(opt, $("evsel").children[1]); $("evsel").value = rows[0].id;
-    events.unshift(rows[0]); renderOpenEvents();
+    events.unshift(rows[0]);
     openEvent(rows[0].id);
   };
-  $("evsel").onchange = e => e.target.value ? openEvent(e.target.value) : null;
   $("copyurl").onclick = () => {
     if (!EV) return toast("이벤트를 먼저 선택하세요");
     const url = location.href.split("#")[0] + `#/g/${G.slug}/e/${EV.id}`;
@@ -697,6 +673,7 @@ async function pageAdmin(key) {
     await del(`assignments?event_id=eq.${EV.id}`); ASSIGN = {}; renderAll();
   };
   function renderMsg() {
+    if (!$("msg")) return; // 미리보기 패널 없는 간소화 레이아웃
     const lines = [`⚔️ **${EV.title}**${EV.starts_at ? " — " + fmtTime(EV.starts_at) + " 출발" : ""}`, EV.spec || "", ""];
     const missing = [];
     slotOrder().forEach(i => { const s = EV.slots[i];
@@ -711,8 +688,14 @@ async function pageAdmin(key) {
   }
   function renderAll() { renderPool(); renderSlots(); renderMsg(); }
   $("copymsg").onclick = () => {
+    if (!EV) return toast("이벤트가 없습니다");
     const lines = [`⚔️ **${EV.title}**${EV.starts_at ? " — " + fmtTime(EV.starts_at) + " 출발" : ""}`, EV.spec || "", ""];
-    slotOrder().forEach(i => { const s = EV.slots[i]; const a = ASSIGN[i]; if (a?.member_id) { const m = MEMBERS.find(x => x.id === a.member_id); lines.push(`${s.pos} — ${m?.nickname} (${EMAP.get(a.entity_id)?.name || ""})`); } });
+    const missing = [];
+    slotOrder().forEach(i => { const s = EV.slots[i]; const a = ASSIGN[i];
+      if (a?.member_id) { const m = MEMBERS.find(x => x.id === a.member_id); lines.push(`${s.pos} — ${m?.nickname} (${EMAP.get(a.entity_id)?.name || ""})`); }
+      else missing.push(`${s.pos}(${s.require.label})`);
+    });
+    if (missing.length) lines.push("", `⚠ 미충원: ${missing.join(", ")}`);
     navigator.clipboard.writeText(lines.join("\n")).then(() => toast("복사됨! 디코에 붙여넣으세요"));
   };
   $("delev").onclick = async () => {
@@ -720,15 +703,15 @@ async function pageAdmin(key) {
     if (!confirm(`'${EV.title}' 이벤트를 완전히 삭제할까요?\n체크인·배정 기록도 함께 삭제되며 출석 집계에서 빠집니다.`)) return;
     const gone = await api(`events?id=eq.${EV.id}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
     if (!gone || !gone.length) return toast("삭제 권한이 없습니다 — 관리자에게 정책 추가 필요");
-    const opt = $("evsel").querySelector(`option[value="${EV.id}"]`); if (opt) opt.remove();
     const ei = events.findIndex(e => e.id === EV.id); if (ei >= 0) events.splice(ei, 1);
-    renderOpenEvents();
-    EV = null; $("evsel").value = ""; $("board").style.display = "none";
+    EV = null;
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     toast("이벤트를 삭제했습니다");
+    if (events.length) openEvent(events[0].id);
+    else $("board").style.display = "none";
   };
 
-  if (events.length) { $("evsel").value = events[0].id; openEvent(events[0].id); }
+  if (events.length) openEvent(events[0].id);
 }
 
 route();
