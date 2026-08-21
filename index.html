@@ -637,15 +637,43 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
+  // 닉네임 입력 모달 (자판 입력 + 멤버 목록 자동완성)
+  function askName(defaultName) {
+    return new Promise(res => {
+      const ov = document.createElement("div"); ov.className = "modal";
+      ov.innerHTML = `<div class="box" style="max-width:340px">
+        <h3>누구로 참가하나요?</h3>
+        <input type="text" id="askn" list="memdl" placeholder="닉네임 입력..." value="${esc(defaultName || "")}" style="width:100%; font-size:16px; padding:11px 13px" autocomplete="off">
+        <datalist id="memdl">${MEMBERS.map(m => `<option value="${esc(m.nickname)}">`).join("")}</datalist>
+        <button class="btn" id="askok" style="width:100%; margin-top:10px">⚔️ 이 닉네임으로 참가</button>
+      </div>`;
+      const done = v => { res(v); ov.remove(); };
+      ov.querySelector("#askok").onclick = () => done(ov.querySelector("#askn").value);
+      ov.querySelector("#askn").addEventListener("keydown", e => { if (e.key === "Enter") done(e.target.value); });
+      ov.addEventListener("click", e => { if (e.target === ov) done(null); });
+      document.body.appendChild(ov);
+      const inp = ov.querySelector("#askn"); inp.focus(); inp.select();
+    });
+  }
   $("gojoin").onclick = async () => {
     if (!EV) return toast("컨텐츠를 먼저 만드세요");
-    const mid = localStorage.getItem(MYKEY);
-    const m = MEMBERS.find(x => x.id === mid);
-    if (!m) { location.hash = `#/g/${G.slug}/e/${EV.id}`; return; } // 첫 방문: 체크인 화면에서 닉네임 선택
+    const savedM = MEMBERS.find(x => x.id === localStorage.getItem(MYKEY));
+    const name = await askName(savedM?.nickname || "");
+    if (name == null) return;
+    const nick = name.trim(); if (!nick) return;
+    let m = MEMBERS.find(x => x.nickname === nick);
+    if (!m) {
+      // 처음 보는 닉네임: 즉석 등록 후 무기 등록으로 안내
+      const rows = await post("members", { guild_id: G.id, nickname: nick });
+      await loadMembers();
+      localStorage.setItem(MYKEY, rows[0].id);
+      toast(`'${nick}' 등록됨 — 무기를 먼저 골라주세요`);
+      location.hash = `#/g/${G.slug}/me`; return;
+    }
+    localStorage.setItem(MYKEY, m.id);
     const weps = memberWeapons(m);
-    if (!weps.length) { toast("등록된 무기가 없습니다 — 무기등록을 먼저 해주세요"); location.hash = `#/g/${G.slug}/me`; return; }
-    // 원클릭 체크인: 등록 무기 전체를 선호 무기로 제출 (다시 고를 필요 없음)
-    await upsert(`checkins?on_conflict=event_id,member_id`, { event_id: EV.id, member_id: mid, entity_ids: weps, delegate: false, is_late: false });
+    if (!weps.length) { toast("등록된 무기가 없습니다 — 무기등록으로 이동합니다"); location.hash = `#/g/${G.slug}/me`; return; }
+    await upsert(`checkins?on_conflict=event_id,member_id`, { event_id: EV.id, member_id: m.id, entity_ids: weps, delegate: false, is_late: false });
     toast(`⚔️ ${m.nickname} 참가 완료! (등록 무기 ${weps.length}개로 신청)`);
     refresh();
   };
