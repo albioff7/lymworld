@@ -273,11 +273,12 @@ function iconImg(eid, size = 44) {
 // 역할순 정렬: 콜러 → 탱 → 힐러 → 서포터 → 딜러
 function posPrio(pos) {
   const p = String(pos);
-  if (p.includes("콜러")) return 0;                       // 1순위
-  if (p.includes("서폿") || p.includes("서포터") || p.includes("탱")) return 1; // 2순위
-  if (p.includes("힐")) return 2;                          // 3순위
-  if (p.includes("딜")) return 3;                          // 4순위
-  return 4;                                                // 미정 등
+  if (p.includes("콜러")) return 0;                 // 1순위
+  if (p.includes("탱")) return 1;                   // 2순위
+  if (p.includes("딜")) return 2;                   // 3순위
+  if (p.includes("힐")) return 3;                   // 4순위
+  if (p.includes("서폿") || p.includes("서포터")) return 4;
+  return 5;                                         // 미정 등
 }
 const sortSlotIdx = slots => slots.map((s, i) => ({ s, i })).sort((a, b) => posPrio(a.s.pos) - posPrio(b.s.pos) || a.i - b.i).map(x => x.i);
 function pickEntity(title, ids, hl = new Set()) {
@@ -711,7 +712,7 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
-  const ROLES = ["콜러", "서포터", "힐러", "딜러", "미정"];
+  const ROLES = ["콜러", "탱커", "딜러", "힐러", "서포터", "미정"];
   // 텍스트 입력 모달 (특이사항 등)
   function askText(title, defaultVal) {
     return new Promise(res => {
