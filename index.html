@@ -222,16 +222,34 @@ function pickEntity(title, ids, hl = new Set()) {
   return new Promise(res => {
     const ov = document.createElement("div"); ov.className = "modal";
     const item = id => `<button class="pitem${hl.has(id) ? " hl" : ""}" data-id="${id}" data-name="${esc(EMAP.get(id)?.name || "")}">${iconImg(id, 44)}${esc(EMAP.get(id)?.name || id)}</button>`;
-    // 대분류별 그룹 (검 한 줄, 도끼 한 줄 … 순차 나열)
+    // 대분류별 그룹: 무기 = 계열(검/도끼…), 방어구 = 재질(천/가죽/판금)
+    const groupOf = id => {
+      const e = EMAP.get(id); if (!e) return "기타";
+      if (GEAR_CATS.includes(e.category)) {
+        const ic = e.icon || "";
+        if (ic.includes("_CLOTH_")) return "천 계열";
+        if (ic.includes("_LEATHER_")) return "가죽 계열";
+        if (ic.includes("_PLATE_")) return "판금 계열";
+        return e.category; // 망토 등
+      }
+      return e.category;
+    };
     const groups = new Map();
     for (const id of ids) {
-      const cat = EMAP.get(id)?.category || "기타";
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat).push(id);
+      const gname = groupOf(id);
+      if (!groups.has(gname)) groups.set(gname, []);
+      groups.get(gname).push(id);
     }
     let body = "";
     if (hl.size) body += `<div class="psec"><h4>★ 유저 선호 무기</h4><div class="pgrid">${[...hl].filter(id => EMAP.has(id)).map(item).join("")}</div></div>`;
-    for (const [cat, list] of groups) body += `<div class="psec"><h4>${esc(cat)}</h4><div class="pgrid">${list.map(item).join("")}</div></div>`;
+    // 방어구 재질은 항상 천→가죽→판금 순서로
+    const ORDER = ["천 계열", "가죽 계열", "판금 계열"];
+    const keys = [...groups.keys()].sort((a, b) => {
+      const ia = ORDER.indexOf(a), ib = ORDER.indexOf(b);
+      if (ia < 0 && ib < 0) return 0;
+      return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib);
+    });
+    for (const gname of keys) body += `<div class="psec"><h4>${esc(gname)}</h4><div class="pgrid">${groups.get(gname).map(item).join("")}</div></div>`;
     ov.innerHTML = `<div class="box big"><h3>${esc(title)}</h3>
       <input type="text" class="psearch" placeholder="이름으로 검색..." style="width:100%; margin-bottom:6px">
       ${body}</div>`;
