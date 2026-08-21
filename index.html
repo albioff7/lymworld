@@ -660,7 +660,10 @@ async function pageAdmin(key) {
   sessionStorage.setItem("sasi-admin-" + G.id, key); // 로고(홈) 클릭 시 콜러는 대시보드로 복귀
   $("crumb").textContent = G.name + " · 콜러 대시보드";
   await loadMembers();
-  const templates = await get(`templates?game_id=eq.${G.game_id}&or=(guild_id.eq.${G.id},guild_id.is.null)&order=created_at&select=*`);
+  let templates = await get(`templates?game_id=eq.${G.game_id}&or=(guild_id.eq.${G.id},guild_id.is.null)&order=created_at&select=*`);
+  // 컨텐츠 선택란: PVE/PVP 시트지 2종만 노출 (세부 콘텐츠 분류는 추후)
+  const sheetTpls = templates.filter(t => t.name.includes("시트지"));
+  if (sheetTpls.length) templates = sheetTpls;
   const events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=15&select=*`);
 
   const BASE = location.href.split("#")[0];
