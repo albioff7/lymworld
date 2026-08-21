@@ -75,6 +75,9 @@
   .etab.on{background:var(--gold); color:#191509; font-weight:700; border-color:var(--gold)}
   .etab:hover{border-color:var(--gold-deep); color:var(--gold)}
   .etab.on:hover{color:#191509}
+  .tclose{margin-left:9px; color:var(--warn); font-weight:700; font-size:12px; opacity:.65}
+  .tclose:hover{opacity:1}
+  .etab.on .tclose{color:#7a2318}
   .slotrow{display:flex; align-items:flex-start; gap:10px}
   .posbox{width:58px; flex:none; display:flex; flex-direction:column; padding-top:6px}
   .posbox .pos{color:var(--gold); font-weight:700; font-size:13.5px}
@@ -512,9 +515,7 @@ async function pageAdmin(key) {
         <h1>🛡 콜러 대시보드</h1>
         <select id="tpl">${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
         <input type="text" id="evtitle" placeholder="이벤트 제목" style="min-width:150px">
-        <button class="btn" id="mkev">+ 이벤트 만들기</button>
-        <span style="color:var(--line)">|</span>
-        <button class="btn ghost sm" id="delev" style="color:var(--warn); border-color:var(--warn)">🗑 삭제</button>
+        <button class="btn" id="mkev">+ 컨텐츠 생성</button>
         <button class="btn ghost sm pulse" id="openme" style="margin-left:auto">🗡 무기등록</button>
         <button class="btn join pulse" id="gojoin" style="margin-left:0">⚔️ 참가 신청</button>
       </div>
@@ -551,11 +552,26 @@ async function pageAdmin(key) {
   };
   function renderTabs() {
     const bar = $("evtabs"); if (!bar) return;
-    bar.innerHTML = '<span style="color:var(--muted); font-size:12px; margin-right:6px; white-space:nowrap">이벤트:</span>' +
+    bar.innerHTML = '<span style="color:var(--muted); font-size:12px; margin-right:6px; white-space:nowrap">컨텐츠:</span>' +
       (events.length
-        ? events.map(e => `<button class="etab${EV && EV.id === e.id ? " on" : ""}" data-id="${e.id}">${esc(e.title)}</button>`).join("")
-        : '<span class="hint">아직 이벤트가 없습니다 — 위에서 만드세요</span>');
+        ? events.map(e => `<button class="etab${EV && EV.id === e.id ? " on" : ""}" data-id="${e.id}">${esc(e.title)}<span class="tclose" data-id="${e.id}" title="이 컨텐츠 삭제">✕</span></button>`).join("")
+        : '<span class="hint">아직 컨텐츠가 없습니다 — 위에서 만드세요</span>');
     bar.querySelectorAll(".etab").forEach(t => t.onclick = () => openEvent(t.dataset.id));
+    bar.querySelectorAll(".tclose").forEach(x => x.onclick = e => { e.stopPropagation(); deleteEvent(x.dataset.id); });
+  }
+  async function deleteEvent(id) {
+    const target = events.find(e => e.id === id); if (!target) return;
+    if (!confirm(`'${target.title}' 컨텐츠를 완전히 삭제할까요?\n체크인·배정 기록도 함께 삭제됩니다.`)) return;
+    const gone = await api(`events?id=eq.${id}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
+    if (!gone || !gone.length) return toast("삭제 권한이 없습니다");
+    const ei = events.findIndex(e => e.id === id); if (ei >= 0) events.splice(ei, 1);
+    toast("삭제했습니다");
+    if (EV && EV.id === id) {
+      EV = null;
+      if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+      if (events.length) openEvent(events[0].id);
+      else { $("board").style.display = "none"; renderTabs(); }
+    } else renderTabs();
   }
   renderTabs();
 
@@ -846,19 +862,6 @@ async function pageAdmin(key) {
       (missing.length ? `\n\n<span class="miss">⚠ 미충원: ${esc(missing.join(", "))}</span>` : "\n\n✅ 전 슬롯 충원");
   }
   function renderAll() { renderPool(); renderSlots(); renderMsg(); }
-  $("delev").onclick = async () => {
-    if (!EV) return toast("이벤트를 먼저 선택하세요");
-    if (!confirm(`'${EV.title}' 이벤트를 완전히 삭제할까요?\n체크인·배정 기록도 함께 삭제되며 출석 집계에서 빠집니다.`)) return;
-    const gone = await api(`events?id=eq.${EV.id}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
-    if (!gone || !gone.length) return toast("삭제 권한이 없습니다 — 관리자에게 정책 추가 필요");
-    const ei = events.findIndex(e => e.id === EV.id); if (ei >= 0) events.splice(ei, 1);
-    EV = null;
-    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-    toast("이벤트를 삭제했습니다");
-    if (events.length) openEvent(events[0].id);
-    else { $("board").style.display = "none"; renderTabs(); }
-  };
-
   if (events.length) openEvent(events[0].id);
 }
 
