@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>사시 — 길드 파티 배정</title>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;900&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;900&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&family=Jua&display=swap">
 <style>
   :root{
     --bg:#131519; --surface:#1B1E24; --raised:#22262E; --line:#2E323B;
@@ -14,10 +14,14 @@
   *{box-sizing:border-box}
   body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif; font-size:15px; line-height:1.6}
   .wrap{max-width:1100px; margin:0 auto; padding:20px 16px 90px}
-  header.top{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; border-bottom:2px solid var(--gold-deep); padding-bottom:12px; margin-bottom:16px}
-  .brand{font-family:'Noto Serif KR',serif; font-weight:900; font-size:24px; color:var(--gold); cursor:pointer}
-  .brand small{font-size:11px; color:var(--muted); font-family:'IBM Plex Sans KR',sans-serif; font-weight:400; margin-left:6px}
-  .crumb{color:var(--muted); font-size:13px}
+  header.top{display:flex; align-items:center; justify-content:center; gap:12px; border-bottom:2px solid var(--gold-deep); padding-bottom:10px; margin-bottom:16px}
+  .logohead{display:flex; align-items:center; gap:16px; cursor:pointer}
+  .logohead img{height:62px; border-radius:12px; border:2px solid var(--gold-deep)}
+  .logotxt{display:flex; flex-direction:column; line-height:1.05}
+  .lw{font-family:'Jua','IBM Plex Sans KR',sans-serif; font-size:34px; color:#E8A33D; text-shadow:2px 2px 0 #59391D; letter-spacing:.02em}
+  .st{font-family:'Jua','IBM Plex Sans KR',sans-serif; font-size:15px; color:var(--gold); letter-spacing:.4em; margin-top:3px}
+  .btn.join{background:#2653D9; color:#fff; margin-left:auto}
+  .btn.join:hover{background:#3767F2}
   h1{font-family:'Noto Serif KR',serif; font-size:20px; color:var(--gold); font-weight:600; margin:0 0 4px}
   h2{font-size:13px; letter-spacing:.08em; color:var(--muted); margin:0 0 10px; text-transform:uppercase}
   .panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:14px}
@@ -105,8 +109,11 @@
 <body>
 <div class="wrap">
   <header class="top">
-    <span class="brand" onclick="location.hash=G?('#/g/'+G.slug):''">사시 <small>SASI beta</small></span>
-    <span class="crumb" id="crumb"></span>
+    <div class="logohead" onclick="location.hash=G?('#/g/'+G.slug):''" title="길드 홈으로">
+      <img src="chars.png" alt="Lym World">
+      <div class="logotxt"><span class="lw">LYM WORLD</span><span class="st">시트지</span></div>
+    </div>
+    <span id="crumb" style="display:none"></span>
   </header>
   <div id="view"><div class="center">불러오는 중...</div></div>
 </div>
@@ -471,6 +478,7 @@ async function pageAdmin(key) {
         <span style="color:var(--line)">|</span>
         <button class="btn ghost sm" id="openme">🗡 내 무기 등록</button>
         <button class="btn ghost sm" id="delev" style="color:var(--warn); border-color:var(--warn)">🗑 삭제</button>
+        <button class="btn join" id="gojoin">⚔️ 참가 신청</button>
       </div>
     </div>
     <div class="evtabs" id="evtabs"></div>
@@ -482,6 +490,10 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
+  $("gojoin").onclick = () => {
+    if (!EV) return toast("이벤트를 먼저 만드세요");
+    location.hash = `#/g/${G.slug}/e/${EV.id}`;
+  };
   function renderTabs() {
     const bar = $("evtabs"); if (!bar) return;
     bar.innerHTML = '<span style="color:var(--muted); font-size:12px; margin-right:6px; white-space:nowrap">이벤트:</span>' +
