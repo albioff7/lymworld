@@ -182,7 +182,15 @@ async function loadMembers() {
 const memberWeapons = m => (m.member_entities || []).map(x => x.entity_id);
 
 // ================= 라우터 =================
-window.addEventListener("hashchange", route);
+let NAV_COUNT = 0; // 이 탭 안에서의 이동 횟수 (뒤로가기 가능 여부 판단)
+window.addEventListener("hashchange", () => { NAV_COUNT++; route(); });
+function goBack(fallbackHash) {
+  if (NAV_COUNT > 0) history.back();
+  else location.hash = fallbackHash; // 링크로 바로 들어온 경우
+}
+function backBtn(fallbackHash) {
+  return `<button class="btn ghost sm" onclick="goBack('${fallbackHash}')">← 뒤로</button>`;
+}
 async function route() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
   const h = location.hash.replace(/^#\/?/, "");
@@ -236,7 +244,10 @@ async function pageRegister() {
   const savedId = localStorage.getItem(MYKEY);
   $("view").innerHTML = `
     <div class="panel">
-      <h1>내 무기 등록</h1>
+      <div class="row" style="justify-content:space-between">
+        <h1>내 무기 등록</h1>
+        ${backBtn(`#/g/${G.slug}`)}
+      </div>
       <p class="hint">닉네임을 고르고, 플레이 가능한 무기를 전부 선택한 뒤 저장하세요. (한 번만 하면 됩니다)</p>
       <div class="row" style="margin-top:10px">
         <select id="who"><option value="">— 내 닉네임 선택 —</option>${MEMBERS.map(m => `<option value="${m.id}">${esc(m.nickname)}</option>`).join("")}</select>
@@ -294,7 +305,7 @@ async function pageRegister() {
     await post("member_entities", [...selected].map(eid => ({ member_id: mid, entity_id: eid })), "return=minimal");
     localStorage.setItem(MYKEY, mid);
     toast(`저장 완료 — 무기 ${selected.size}개 등록됨`);
-    setTimeout(() => location.hash = `#/g/${G.slug}`, 900);
+    setTimeout(() => goBack(`#/g/${G.slug}`), 900);
   };
 }
 
@@ -311,7 +322,10 @@ async function pageCheckin(eventId) {
 
   $("view").innerHTML = `
     <div class="panel">
-      <h1>⚔️ ${esc(ev.title)}</h1>
+      <div class="row" style="justify-content:space-between">
+        <h1>⚔️ ${esc(ev.title)}</h1>
+        ${backBtn(`#/g/${G.slug}`)}
+      </div>
       <div class="hint">${ev.starts_at ? "출발 " + fmtTime(ev.starts_at) + " · " : ""}${esc(ev.spec || "")}</div>
     </div>
     <div class="panel"><h2>참가 현황 <span id="cicnt" style="color:var(--gold)"></span></h2><ul class="roster" id="roster"></ul></div>
@@ -430,7 +444,7 @@ async function pageAdmin(key) {
         <div id="slots"></div><p class="hint">📌 핀 고정 · 아이콘 드래그 = 두 사람 간 교환 · 아이콘 클릭 = 변경</p></div>
       <div class="panel"><h2>체크인 <b id="cicnt2"></b></h2><div id="pool"></div><p class="hint">참가자를 슬롯으로 드래그해서 배정 (클릭→클릭도 가능)</p></div>
     </div>`;
-  $("openme").onclick = () => window.open(BASE + `#/g/${G.slug}/me`, "_blank");
+  $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
 
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
 
