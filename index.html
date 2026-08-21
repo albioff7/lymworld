@@ -615,9 +615,17 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
-  $("gojoin").onclick = () => {
-    if (!EV) return toast("이벤트를 먼저 만드세요");
-    location.hash = `#/g/${G.slug}/e/${EV.id}`;
+  $("gojoin").onclick = async () => {
+    if (!EV) return toast("컨텐츠를 먼저 만드세요");
+    const mid = localStorage.getItem(MYKEY);
+    const m = MEMBERS.find(x => x.id === mid);
+    if (!m) { location.hash = `#/g/${G.slug}/e/${EV.id}`; return; } // 첫 방문: 체크인 화면에서 닉네임 선택
+    const weps = memberWeapons(m);
+    if (!weps.length) { toast("등록된 무기가 없습니다 — 무기등록을 먼저 해주세요"); location.hash = `#/g/${G.slug}/me`; return; }
+    // 원클릭 체크인: 등록 무기 전체를 선호 무기로 제출 (다시 고를 필요 없음)
+    await upsert(`checkins?on_conflict=event_id,member_id`, { event_id: EV.id, member_id: mid, entity_ids: weps, delegate: false, is_late: false });
+    toast(`⚔️ ${m.nickname} 참가 완료! (등록 무기 ${weps.length}개로 신청)`);
+    refresh();
   };
   $("sortie").onclick = async () => {
     if (!EV) return toast("출격할 컨텐츠가 없습니다");
