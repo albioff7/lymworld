@@ -133,6 +133,13 @@
   .pitem:hover{border-color:var(--gold); color:var(--gold)}
   .pitem.hl{border-color:var(--gold-deep); background:var(--gold-soft); color:var(--gold)}
   .chip img{width:18px; height:18px; vertical-align:-4px; margin-right:3px}
+  /* 스플래시 */
+  #splash{position:fixed; inset:0; background:var(--bg); z-index:100; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; opacity:1; transition:opacity .55s ease}
+  #splash.out{opacity:0; pointer-events:none}
+  #splash .coverlogo{animation:splIn .7s ease both}
+  .splimg{max-width:min(400px,80vw); border-radius:14px; border:3px solid var(--gold-deep); box-shadow:0 8px 40px rgba(0,0,0,.5), 0 0 26px rgba(201,162,51,.2); animation:splIn .7s .15s ease both}
+  @keyframes splIn{ from{opacity:0; transform:translateY(14px) scale(.97)} to{opacity:1; transform:none} }
+  @media (prefers-reduced-motion: reduce){ #splash .coverlogo, .splimg{animation:none} }
   /* 표지 */
   .cover{position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:82vh; text-align:center; gap:14px; overflow:hidden}
   .coverlogo{display:flex; flex-direction:column; line-height:1.05}
@@ -161,6 +168,14 @@
 </style>
 </head>
 <body>
+<!-- 스플래시: 접속 시마다 잠깐 표시 후 사라짐 -->
+<div id="splash">
+  <div class="coverlogo">
+    <span class="clw">LYM WORLD</span>
+    <span class="cst">시 트 지</span>
+  </div>
+  <img src="chars.png" alt="" class="splimg">
+</div>
 <div class="wrap">
   <header class="top">
     <div class="logohead" onclick="goHome()" title="홈으로">
@@ -1079,6 +1094,15 @@ async function pageAdmin(key) {
 }
 
 route();
+
+// 스플래시: 1.8초 후 자동으로 사라짐 (클릭하면 즉시 건너뜀)
+(() => {
+  const sp = document.getElementById("splash");
+  if (!sp) return;
+  const hide = () => { sp.classList.add("out"); setTimeout(() => sp.remove(), 600); };
+  sp.addEventListener("click", hide);
+  setTimeout(hide, 1800);
+})();
 </script>
 </body>
 </html>
