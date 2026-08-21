@@ -214,27 +214,35 @@ async function route() {
 // ================= 길드 홈 =================
 async function pageHome() {
   $("crumb").textContent = G.name;
-  let events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=10&select=*`);
-  const cutoff = Date.now() - 12 * 3600 * 1000; // 출발 후 12시간(시간 미지정은 생성 후 24시간) 지나면 자동 숨김
-  events = events.filter(ev => ev.starts_at
-    ? new Date(ev.starts_at).getTime() > cutoff
-    : new Date(ev.created_at).getTime() > Date.now() - 24 * 3600 * 1000);
   $("view").innerHTML = `
     <div class="panel">
-      <h1>⚔️ ${esc(G.name)}</h1>
-      <p class="hint">진행 중인 이벤트를 눌러 참가 신청하세요. 무기 등록은 최초 1회만 하면 됩니다.</p>
-      <div class="row" style="margin-top:8px"><button class="btn ghost sm" onclick="location.hash='#/g/${G.slug}/me'">🗡 내 무기 등록/수정</button></div>
+      <div class="row" style="justify-content:space-between">
+        <h1>⚔️ ${esc(G.name)}</h1>
+        <button class="btn ghost sm" onclick="location.hash='#/g/${G.slug}/me'">🗡 내 무기 등록/수정</button>
+      </div>
+      <p class="hint">진행 중인 이벤트를 눌러 참가 신청하세요. 이 페이지는 자동으로 갱신됩니다 — 새 이벤트가 열리면 바로 나타납니다.</p>
     </div>
-    <div class="panel"><h2>진행 중인 이벤트</h2><div id="evs">${events.length ? "" : '<p class="hint">아직 열린 이벤트가 없습니다. 콜러가 이벤트를 만들면 여기에 뜹니다.</p>'}</div></div>`;
-  const box = $("evs");
-  for (const ev of events) {
-    const d = document.createElement("div");
-    d.className = "evcard";
-    d.innerHTML = `<h3>${esc(ev.title)}<span class="badge open">신청 받는 중</span></h3>
-      <div class="sub">${ev.starts_at ? "출발 " + fmtTime(ev.starts_at) + " · " : ""}${esc(ev.spec || "")}</div>`;
-    d.onclick = () => location.hash = `#/g/${G.slug}/e/${ev.id}`;
-    box.appendChild(d);
+    <div class="panel"><h2>진행 중인 이벤트</h2><div id="evs"></div></div>`;
+  async function refreshHome() {
+    let events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=10&select=*,checkins(count)`);
+    const cutoff = Date.now() - 12 * 3600 * 1000; // 출발 후 12시간(시간 미지정은 생성 후 24시간) 지나면 자동 숨김
+    events = events.filter(ev => ev.starts_at
+      ? new Date(ev.starts_at).getTime() > cutoff
+      : new Date(ev.created_at).getTime() > Date.now() - 24 * 3600 * 1000);
+    const box = $("evs"); if (!box) return;
+    box.innerHTML = events.length ? "" : '<p class="hint">지금은 모집 중인 이벤트가 없습니다. 콜러가 이벤트를 열면 여기에 바로 뜹니다.</p>';
+    for (const ev of events) {
+      const n = ev.checkins?.[0]?.count ?? 0;
+      const d = document.createElement("div");
+      d.className = "evcard";
+      d.innerHTML = `<h3>${esc(ev.title)}<span class="badge open">모집 중 · ${n}명 신청</span></h3>
+        <div class="sub">${ev.starts_at ? "출발 " + fmtTime(ev.starts_at) + " · " : ""}${esc(ev.spec || "")}</div>`;
+      d.onclick = () => location.hash = `#/g/${G.slug}/e/${ev.id}`;
+      box.appendChild(d);
+    }
   }
+  await refreshHome();
+  pollTimer = setInterval(refreshHome, 10000);
 }
 
 // ================= 무기 등록 =================
@@ -433,7 +441,7 @@ async function pageAdmin(key) {
         <button class="btn" id="mkev">+ 이벤트 만들기</button>
         <span style="color:var(--line)">|</span>
         <button class="btn sm" id="copymsg">📋 결과 복사</button>
-        <button class="btn ghost sm" id="copyurl">체크인 링크 복사</button>
+        <button class="btn ghost sm" id="copyurl">📢 모집글 복사</button>
         <button class="btn ghost sm" id="openme">🗡 내 무기 등록</button>
         <button class="btn ghost sm" id="delev" style="color:var(--warn); border-color:var(--warn)">🗑 삭제</button>
       </div>
@@ -457,9 +465,10 @@ async function pageAdmin(key) {
     openEvent(rows[0].id);
   };
   $("copyurl").onclick = () => {
-    if (!EV) return toast("이벤트를 먼저 선택하세요");
-    const url = location.href.split("#")[0] + `#/g/${G.slug}/e/${EV.id}`;
-    navigator.clipboard.writeText(`⚔️ ${EV.title} 참가 신청 → ${url}`).then(() => toast("복사됨! 디코에 붙여넣으세요"));
+    if (!EV) return toast("이벤트를 먼저 만드세요");
+    // 길드 고정 URL 하나만 사용 — 디코에 항상 같은 주소가 올라간다
+    navigator.clipboard.writeText(`⚔️ ${EV.title} — 참가 신청 → ${BASE}#/g/${G.slug}`)
+      .then(() => toast("모집글 복사됨! (항상 같은 길드 URL입니다)"));
   };
 
   async function openEvent(id) {
