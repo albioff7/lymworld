@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>사시 — 길드 파티 배정</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;900&family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+  :root{
+    --bg:#131519; --surface:#1B1E24; --raised:#22262E; --line:#2E323B;
+    --ink:#E8E2D4; --muted:#9A937F; --gold:#C9A233; --gold-deep:#8A6F1F;
+    --gold-soft:rgba(201,162,51,.14); --ok:#7FB069; --warn:#C05B4D; --blue:#6C8EBF;
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif; font-size:15px; line-height:1.6}
+  .wrap{max-width:1100px; margin:0 auto; padding:20px 16px 90px}
+  header.top{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; border-bottom:2px solid var(--gold-deep); padding-bottom:12px; margin-bottom:16px}
+  .brand{font-family:'Noto Serif KR',serif; font-weight:900; font-size:24px; color:var(--gold); cursor:pointer}
+  .brand small{font-size:11px; color:var(--muted); font-family:'IBM Plex Sans KR',sans-serif; font-weight:400; margin-left:6px}
+  .crumb{color:var(--muted); font-size:13px}
+  h1{font-family:'Noto Serif KR',serif; font-size:20px; color:var(--gold); font-weight:600; margin:0 0 4px}
+  h2{font-size:13px; letter-spacing:.08em; color:var(--muted); margin:0 0 10px; text-transform:uppercase}
+  .panel{background:var(--surface); border:1px solid var(--line); border-radius:8px; padding:16px 18px; margin-bottom:14px}
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center}
+  .btn{background:var(--gold); color:#191509; border:none; border-radius:6px; padding:9px 18px; font-size:14px; font-weight:700; cursor:pointer; font-family:inherit}
+  .btn:hover{background:#DBB543}
+  .btn.ghost{background:transparent; color:var(--gold); border:1px solid var(--gold-deep)}
+  .btn.sm{padding:5px 12px; font-size:12.5px}
+  .btn:disabled{opacity:.4; cursor:default}
+  input[type=text],input[type=datetime-local],select,textarea{background:var(--raised); border:1px solid var(--line); color:var(--ink); border-radius:6px; padding:8px 12px; font-size:14px; font-family:inherit}
+  input:focus,select:focus,textarea:focus{outline:2px solid var(--gold-deep)}
+  .chip{background:var(--raised); border:1px solid var(--line); color:var(--ink); border-radius:999px; padding:6px 13px; font-size:13px; cursor:pointer; font-family:inherit; user-select:none}
+  .chip.on{background:var(--gold); border-color:var(--gold); color:#191509; font-weight:700}
+  .chip.warnon{background:var(--warn); border-color:var(--warn); color:#fff; font-weight:700}
+  .chips{display:flex; flex-wrap:wrap; gap:7px}
+  .mem{background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:8px 11px; margin-bottom:7px; cursor:pointer}
+  .mem.sel{border-color:var(--gold); box-shadow:0 0 0 1px var(--gold)}
+  .mem .nm{font-weight:700}
+  .mem .sub{font-size:12px; color:var(--muted); margin-top:2px}
+  .wtag{display:inline-block; font-size:11px; background:var(--surface); border:1px solid var(--line); border-radius:4px; padding:1px 6px; color:var(--muted); margin:2px 3px 0 0}
+  .wtag.hit{border-color:var(--gold-deep); color:var(--gold)}
+  .slot{background:var(--raised); border:1px dashed var(--line); border-radius:8px; padding:9px 12px; margin-bottom:7px; cursor:pointer}
+  .slot.sel{border-color:var(--gold); border-style:solid}
+  .slot.over{border-color:var(--gold); border-style:solid; background:var(--gold-soft)}
+  .slot[draggable="true"]{cursor:grab}
+  .slot .req{font-size:12px; color:var(--muted)}
+  .slot .req .pos{color:var(--gold); font-weight:700; font-size:13px; margin-right:8px}
+  .slot .who{margin-top:3px; display:flex; align-items:center; gap:8px; flex-wrap:wrap}
+  .slot .who .nm{font-weight:700}
+  .slot .how{font-size:11px; color:var(--ok)}
+  .slot .how.deleg{color:var(--blue)}
+  .slot .empty{color:#4a5058; font-size:13px; margin-top:3px}
+  .pinbtn{background:none;border:none;cursor:pointer;font-size:13px;padding:0 3px}
+  .x{background:none; border:none; color:var(--warn); cursor:pointer; font-size:13px; padding:0 4px}
+  .cols{display:grid; grid-template-columns:290px 1fr 300px; gap:12px}
+  @media(max-width:960px){.cols{grid-template-columns:1fr}}
+  .disc{background:#1F2430; border:1px solid #3A4254; border-radius:8px; padding:11px 13px; font-size:13px}
+  .disc pre{margin:0; white-space:pre-wrap; font-family:inherit; line-height:1.65}
+  .miss{color:var(--warn)}
+  .cat h3{font-family:'Noto Serif KR',serif; font-size:15px; color:var(--gold); font-weight:600; margin:14px 0 7px; border-bottom:1px solid var(--line); padding-bottom:5px}
+  .icons{display:flex; gap:5px; align-items:center; flex-wrap:wrap}
+  .ibox{width:46px; height:46px; background:var(--surface); border:1px solid var(--line); border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0; cursor:pointer}
+  .ibox img{width:44px; height:44px}
+  .ibox.ghost{opacity:.4}
+  .ibox:hover{border-color:var(--gold)}
+  .modal{position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px}
+  .modal .box{background:var(--surface); border:1px solid var(--gold-deep); border-radius:10px; padding:16px; max-width:560px; max-height:72vh; overflow:auto}
+  .modal h3{margin:0 0 10px; color:var(--gold); font-size:15px; font-family:'Noto Serif KR',serif}
+  .pgrid{display:flex; flex-wrap:wrap; gap:8px}
+  .pitem{width:68px; background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:5px 3px; cursor:pointer; text-align:center; font-size:10.5px; color:var(--muted); line-height:1.25; font-family:inherit}
+  .pitem img{width:44px; height:44px; display:block; margin:0 auto 2px}
+  .pitem:hover{border-color:var(--gold); color:var(--gold)}
+  .pitem.hl{border-color:var(--gold-deep); background:var(--gold-soft); color:var(--gold)}
+  .chip img{width:18px; height:18px; vertical-align:-4px; margin-right:3px}
+  .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--gold); color:#191509; padding:8px 18px; border-radius:999px; font-weight:700; font-size:13.5px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:99; max-width:90vw}
+  .toast.show{opacity:1}
+  .hint{color:var(--muted); font-size:12.5px; margin:6px 0 0}
+  .evcard{background:var(--raised); border:1px solid var(--gold-deep); border-radius:8px; padding:13px 16px; margin-bottom:9px; cursor:pointer}
+  .evcard h3{margin:0; font-size:16px; color:var(--gold); font-family:'Noto Serif KR',serif; font-weight:600}
+  .evcard .sub{font-size:12.5px; color:var(--muted); margin-top:2px}
+  .badge{display:inline-block; font-size:11px; border-radius:4px; padding:1px 7px; margin-left:8px; vertical-align:1px}
+  .badge.open{background:var(--gold-soft); color:var(--gold); border:1px solid var(--gold-deep)}
+  .badge.confirmed{background:rgba(127,176,105,.15); color:var(--ok); border:1px solid var(--ok)}
+  .roster li{margin:3px 0; font-size:13.5px}
+  .roster{columns:2; margin:8px 0; padding-left:20px}
+  @media(max-width:600px){.roster{columns:1}}
+  .center{text-align:center; color:var(--muted); padding:30px 0}
+  a{color:var(--gold)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <span class="brand" onclick="location.hash=G?('#/g/'+G.slug):''">사시 <small>SASI beta</small></span>
+    <span class="crumb" id="crumb"></span>
+  </header>
+  <div id="view"><div class="center">불러오는 중...</div></div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ================= 설정 =================
+const SUPABASE_URL = "https://gzzuvozbzrroioujeirs.supabase.co";
+const SUPABASE_KEY = "sb_publishable_Ii2sGImrXlDUAScmtTXNAw_MlzrgmRf";
+
+// ================= REST 헬퍼 =================
+async function api(path, opt = {}) {
+  const headers = { apikey: SUPABASE_KEY, Authorization: "Bearer " + SUPABASE_KEY, "Content-Type": "application/json", ...(opt.headers || {}) };
+  const res = await fetch(SUPABASE_URL + "/rest/v1/" + path, { ...opt, headers });
+  if (!res.ok) { const t = await res.text(); throw new Error(res.status + " " + t.slice(0, 300)); }
+  const txt = await res.text();
+  return txt ? JSON.parse(txt) : null;
+}
+const get = p => api(p);
+const post = (p, body, prefer = "return=representation") => api(p, { method: "POST", body: JSON.stringify(body), headers: { Prefer: prefer } });
+const patch = (p, body) => api(p, { method: "PATCH", body: JSON.stringify(body), headers: { Prefer: "return=representation" } });
+const del = p => api(p, { method: "DELETE" });
+const upsert = (p, body) => api(p, { method: "POST", body: JSON.stringify(body), headers: { Prefer: "resolution=merge-duplicates,return=representation" } });
+
+// ================= 상태 =================
+let G = null;          // guild
+let ENTITIES = [];     // 카탈로그
+let EMAP = new Map();  // entity_id -> entity
+let MEMBERS = [];      // 멤버(+무기)
+let MYKEY = "sasi-me-"; // localStorage: 내 멤버 기억
+let pollTimer = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); setTimeout(() => el.classList.remove("show"), 2200); }
+function fmtTime(iso) { if (!iso) return ""; const d = new Date(iso); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; }
+
+async function loadGuild(slug) {
+  if (G && G.slug === slug) return;
+  const gs = await get(`guilds_public?slug=eq.${encodeURIComponent(slug)}&select=*`);
+  if (!gs.length) throw new Error("길드를 찾을 수 없습니다: " + slug);
+  G = gs[0];
+  MYKEY = "sasi-me-" + G.id;
+  ENTITIES = await get(`entities?game_id=eq.${G.game_id}&active=is.true&order=category,sort_order&select=id,name,category,icon`);
+  EMAP = new Map(ENTITIES.map(e => [e.id, e]));
+}
+const GEAR_CATS = ["머리", "갑옷", "신발"];
+const iconUrl = (eid, size = 64) => { const e = EMAP.get(eid); return e?.icon ? `https://render.albiononline.com/v1/item/T8_${e.icon}.png?quality=4&size=${size}` : null; };
+function iconImg(eid, size = 44) {
+  const u = iconUrl(eid); const e = EMAP.get(eid);
+  return u ? `<img src="${u}" alt="" title="${esc(e?.name || "")}" width="${size}" height="${size}" loading="lazy">` : `<span style="font-size:10px">${esc(e?.name || "?")}</span>`;
+}
+function pickEntity(title, ids, hl = new Set()) {
+  return new Promise(res => {
+    const ov = document.createElement("div"); ov.className = "modal";
+    const sorted = [...ids].sort((a, b) => (hl.has(b) ? 1 : 0) - (hl.has(a) ? 1 : 0));
+    ov.innerHTML = `<div class="box"><h3>${esc(title)}</h3>
+      <input type="text" class="psearch" placeholder="이름으로 검색..." style="width:100%; margin-bottom:10px">
+      <div class="pgrid">${sorted.map(id => `<button class="pitem${hl.has(id) ? " hl" : ""}" data-id="${id}" data-name="${esc(EMAP.get(id)?.name || "")}">${iconImg(id, 44)}${esc(EMAP.get(id)?.name || id)}</button>`).join("")}</div></div>`;
+    const q = ov.querySelector(".psearch");
+    q.addEventListener("click", e => e.stopPropagation());
+    q.addEventListener("input", () => {
+      const v = q.value.trim();
+      ov.querySelectorAll(".pitem").forEach(p => p.style.display = (!v || p.dataset.name.includes(v)) ? "" : "none");
+    });
+    ov.addEventListener("click", e => {
+      const b = e.target.closest(".pitem");
+      if (b) { res(b.dataset.id); ov.remove(); }
+      else if (e.target === ov) { res(null); ov.remove(); }
+    });
+    document.body.appendChild(ov);
+    q.focus();
+  });
+}
+async function loadMembers() {
+  MEMBERS = await get(`members?guild_id=eq.${G.id}&active=is.true&order=nickname&select=id,nickname,roles,member_entities(entity_id,spec_tier)`);
+}
+const memberWeapons = m => (m.member_entities || []).map(x => x.entity_id);
+
+// ================= 라우터 =================
+window.addEventListener("hashchange", route);
+async function route() {
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  const h = location.hash.replace(/^#\/?/, "");
+  const p = h.split("/").filter(Boolean);
+  const v = $("view");
+  v.innerHTML = '<div class="center">불러오는 중...</div>';
+  try {
+    if (p[0] === "g" && p[1]) {
+      await loadGuild(p[1]);
+      if (p[2] === "e" && p[3]) return pageCheckin(p[3]);
+      if (p[2] === "me") return pageRegister();
+      if (p[2] === "admin" && p[3]) return pageAdmin(p[3]);
+      return pageHome();
+    }
+    v.innerHTML = '<div class="center">주소가 올바르지 않습니다. 길드 링크로 접속해주세요.<br>예: <b>app.html#/g/lym</b></div>';
+  } catch (e) {
+    v.innerHTML = `<div class="center">오류: ${esc(e.message)}</div>`;
+  }
+}
+
+// ================= 길드 홈 =================
+async function pageHome() {
+  $("crumb").textContent = G.name;
+  let events = await get(`events?guild_id=eq.${G.id}&status=eq.open&order=created_at.desc&limit=10&select=*`);
+  const cutoff = Date.now() - 12 * 3600 * 1000; // 출발 후 12시간 지나면 자동 숨김
+  events = events.filter(ev => !ev.starts_at || new Date(ev.starts_at).getTime() > cutoff);
+  $("view").innerHTML = `
+    <div class="panel">
+      <h1>⚔️ ${esc(G.name)}</h1>
+      <p class="hint">진행 중인 이벤트를 눌러 참가 신청하세요. 무기 등록은 최초 1회만 하면 됩니다.</p>
+      <div class="row" style="margin-top:8px"><button class="btn ghost sm" onclick="location.hash='#/g/${G.slug}/me'">🗡 내 무기 등록/수정</button></div>
+    </div>
+    <div class="panel"><h2>진행 중인 이벤트</h2><div id="evs">${events.length ? "" : '<p class="hint">아직 열린 이벤트가 없습니다. 콜러가 이벤트를 만들면 여기에 뜹니다.</p>'}</div></div>`;
+  const box = $("evs");
+  for (const ev of events) {
+    const d = document.createElement("div");
+    d.className = "evcard";
+    d.innerHTML = `<h3>${esc(ev.title)}<span class="badge open">신청 받는 중</span></h3>
+      <div class="sub">${ev.starts_at ? "출발 " + fmtTime(ev.starts_at) + " · " : ""}${esc(ev.spec || "")}</div>`;
+    d.onclick = () => location.hash = `#/g/${G.slug}/e/${ev.id}`;
+    box.appendChild(d);
+  }
+}
+
+// ================= 무기 등록 =================
+async function pageRegister() {
+  $("crumb").textContent = G.name + " · 무기 등록";
+  await loadMembers();
+  const savedId = localStorage.getItem(MYKEY);
+  $("view").innerHTML = `
+    <div class="panel">
+      <h1>내 무기 등록</h1>
+      <p class="hint">닉네임을 고르고, 플레이 가능한 무기를 전부 선택한 뒤 저장하세요. (한 번만 하면 됩니다)</p>
+      <div class="row" style="margin-top:10px">
+        <select id="who"><option value="">— 내 닉네임 선택 —</option>${MEMBERS.map(m => `<option value="${m.id}">${esc(m.nickname)}</option>`).join("")}</select>
+        <input type="text" id="newnick" placeholder="목록에 없으면 새 닉네임 입력" maxlength="20">
+        <button class="btn ghost sm" id="addnick">새로 등록</button>
+      </div>
+    </div>
+    <div class="panel"><h2>무기 선택 <span id="selcnt" style="color:var(--gold)"></span></h2>
+      <input type="text" id="q" placeholder="무기 검색 (예: 미피, 폴해머)" style="width:100%; margin-bottom:8px">
+      <div id="cats"></div>
+    </div>
+    <div class="row"><button class="btn" id="save">저장</button></div>`;
+  const selected = new Set();
+  const catBox = $("cats");
+  const byCat = {};
+  for (const e of ENTITIES) { if (GEAR_CATS.includes(e.category)) continue; (byCat[e.category] ??= []).push(e); }
+  for (const [cat, list] of Object.entries(byCat)) {
+    const d = document.createElement("div"); d.className = "cat";
+    d.innerHTML = `<h3>${esc(cat)}</h3>`;
+    const chips = document.createElement("div"); chips.className = "chips";
+    for (const e of list) {
+      const b = document.createElement("button"); b.className = "chip"; b.dataset.id = e.id; b.dataset.name = e.name;
+      b.innerHTML = (iconUrl(e.id) ? `<img src="${iconUrl(e.id, 32)}" alt="" loading="lazy">` : "") + esc(e.name);
+      b.onclick = () => { b.classList.toggle("on") ? selected.add(e.id) : selected.delete(e.id); $("selcnt").textContent = `(${selected.size}개)`; };
+      chips.appendChild(b);
+    }
+    d.appendChild(chips); catBox.appendChild(d);
+  }
+  $("q").oninput = e => {
+    const q = e.target.value.trim();
+    document.querySelectorAll("#cats .chip").forEach(c => c.style.display = (!q || c.dataset.name.includes(q)) ? "" : "none");
+  };
+  function loadSel(mid) {
+    selected.clear();
+    document.querySelectorAll("#cats .chip").forEach(c => c.classList.remove("on"));
+    const m = MEMBERS.find(x => x.id === mid); if (!m) return;
+    for (const eid of memberWeapons(m)) { selected.add(eid); const c = document.querySelector(`#cats .chip[data-id="${eid}"]`); if (c) c.classList.add("on"); }
+    $("selcnt").textContent = `(${selected.size}개)`;
+  }
+  $("who").onchange = e => loadSel(e.target.value);
+  if (savedId && MEMBERS.some(m => m.id === savedId)) { $("who").value = savedId; loadSel(savedId); }
+  $("addnick").onclick = async () => {
+    const nick = $("newnick").value.trim(); if (!nick) return toast("닉네임을 입력해주세요");
+    try {
+      const rows = await post("members", { guild_id: G.id, nickname: nick });
+      await loadMembers();
+      $("who").innerHTML = `<option value="">— 내 닉네임 선택 —</option>` + MEMBERS.map(m => `<option value="${m.id}">${esc(m.nickname)}</option>`).join("");
+      $("who").value = rows[0].id; loadSel(rows[0].id); toast("등록됐습니다. 무기를 선택하고 저장하세요!");
+    } catch (e) { toast(e.message.includes("duplicate") ? "이미 있는 닉네임입니다. 목록에서 선택하세요" : "등록 실패: " + e.message); }
+  };
+  $("save").onclick = async () => {
+    const mid = $("who").value; if (!mid) return toast("닉네임을 먼저 선택해주세요");
+    if (!selected.size) return toast("무기를 1개 이상 선택해주세요");
+    await del(`member_entities?member_id=eq.${mid}`);
+    await post("member_entities", [...selected].map(eid => ({ member_id: mid, entity_id: eid })), "return=minimal");
+    localStorage.setItem(MYKEY, mid);
+    toast(`저장 완료 — 무기 ${selected.size}개 등록됨`);
+    setTimeout(() => location.hash = `#/g/${G.slug}`, 900);
+  };
+}
+
+// ================= 체크인 =================
+async function pageCheckin(eventId) {
+  const evs = await get(`events?id=eq.${eventId}&select=*`);
+  if (!evs.length) return $("view").innerHTML = '<div class="center">이벤트를 찾을 수 없습니다</div>';
+  const ev = evs[0];
+  $("crumb").textContent = G.name + " · " + ev.title;
+  await loadMembers();
+  const savedId = localStorage.getItem(MYKEY);
+  const needIds = new Set(ev.slots.filter(s => s.require.type === "entity").map(s => s.require.value));
+  const needCats = new Set(ev.slots.filter(s => s.require.type === "category").map(s => s.require.value));
+
+  $("view").innerHTML = `
+    <div class="panel">
+      <h1>⚔️ ${esc(ev.title)}</h1>
+      <div class="hint">${ev.starts_at ? "출발 " + fmtTime(ev.starts_at) + " · " : ""}${esc(ev.spec || "")}</div>
+    </div>
+    <div class="panel"><h2>참가 현황 <span id="cicnt" style="color:var(--gold)"></span></h2><ul class="roster" id="roster"></ul></div>
+    <div class="panel">
+      <h2>참가 신청</h2>
+      <div class="row">
+        <select id="who"><option value="">— 내 닉네임 —</option>${MEMBERS.map(m => `<option value="${m.id}">${esc(m.nickname)}</option>`).join("")}</select>
+        <input type="text" id="newnick" placeholder="목록에 없으면 새 닉네임" maxlength="20"><button class="btn ghost sm" id="addnick">추가</button>
+      </div>
+      <h2 style="margin-top:14px">오늘 낼 수 있는 무기 (복수 선택) <span style="color:var(--warn); text-transform:none">— 붉은 점은 이번 조합에 필요한 무기</span></h2>
+      <div class="chips" id="myweps"><span class="hint">닉네임을 선택하면 등록된 무기가 나옵니다</span></div>
+      <div class="row" style="margin-top:10px">
+        <button class="chip" id="deleg">🤝 아무거나 (콜러에게 맡김)</button>
+        <input type="text" id="memo" placeholder="메모 (예: 21시 퇴근, 폴햄은 스펙 낮음)" style="flex:1; min-width:200px">
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" id="join" style="flex:1">⚔️ 참가 신청</button>
+        <button class="btn ghost" id="cancel">신청 취소</button>
+      </div>
+      <p class="hint">무기가 등록 안 돼 있어도 아래에서 바로 고르고 신청할 수 있습니다.</p>
+    </div>`;
+
+  let myWepSel = new Set();
+  function renderMyWeps(mid) {
+    const box = $("myweps"); box.innerHTML = "";
+    const m = MEMBERS.find(x => x.id === mid);
+    const mine = m ? memberWeapons(m) : [];
+    const pool = [...new Set([...mine, ...[...needIds]])]; // 등록 무기 + 이번에 필요한 무기(즉석 추가 가능)
+    if (!pool.length) { box.innerHTML = '<span class="hint">등록된 무기가 없습니다 — 홈에서 무기 등록을 먼저 해주세요</span>'; return; }
+    for (const eid of pool) {
+      const e = EMAP.get(eid); if (!e) continue;
+      const need = needIds.has(eid) || needCats.has(e.category);
+      const b = document.createElement("button"); b.className = "chip";
+      b.innerHTML = (iconUrl(eid) ? `<img src="${iconUrl(eid, 32)}" alt="" loading="lazy">` : "") + esc(e.name) + (need ? ' <span style="color:var(--warn)">●</span>' : "") + (!mine.includes(eid) ? ' <span style="font-size:10px;color:var(--muted)">(미등록)</span>' : "");
+      if (myWepSel.has(eid)) b.classList.add("on");
+      b.onclick = () => { b.classList.toggle("on") ? myWepSel.add(eid) : myWepSel.delete(eid); };
+      box.appendChild(b);
+    }
+  }
+  $("who").onchange = e => { myWepSel.clear(); renderMyWeps(e.target.value); loadMyCheckin(e.target.value); };
+  if (savedId && MEMBERS.some(m => m.id === savedId)) { $("who").value = savedId; renderMyWeps(savedId); loadMyCheckin(savedId); }
+
+  let delegOn = false;
+  $("deleg").onclick = () => { delegOn = !delegOn; $("deleg").classList.toggle("warnon", delegOn); };
+
+  $("addnick").onclick = async () => {
+    const nick = $("newnick").value.trim(); if (!nick) return toast("닉네임 입력");
+    try {
+      const rows = await post("members", { guild_id: G.id, nickname: nick });
+      await loadMembers();
+      $("who").innerHTML = `<option value="">— 내 닉네임 —</option>` + MEMBERS.map(m => `<option value="${m.id}">${esc(m.nickname)}</option>`).join("");
+      $("who").value = rows[0].id; renderMyWeps(rows[0].id); toast("등록됐습니다!");
+    } catch (e) { toast("이미 있는 닉네임이거나 오류: 목록에서 선택하세요"); }
+  };
+  async function loadMyCheckin(mid) {
+    if (!mid) return;
+    const rows = await get(`checkins?event_id=eq.${eventId}&member_id=eq.${mid}&select=*`);
+    if (rows.length) {
+      myWepSel = new Set(rows[0].entity_ids); delegOn = rows[0].delegate;
+      $("deleg").classList.toggle("warnon", delegOn); $("memo").value = rows[0].memo || "";
+      renderMyWeps(mid);
+    }
+  }
+  $("join").onclick = async () => {
+    const mid = $("who").value; if (!mid) return toast("닉네임을 선택해주세요");
+    if (!myWepSel.size && !delegOn) return toast("무기를 고르거나 '아무거나'를 눌러주세요");
+    await upsert(`checkins?on_conflict=event_id,member_id`, { event_id: eventId, member_id: mid, entity_ids: [...myWepSel], delegate: delegOn, memo: $("memo").value.trim() || null, is_late: ev.status !== "open" });
+    localStorage.setItem(MYKEY, mid);
+    toast("참가 신청 완료!"); refreshRoster();
+  };
+  $("cancel").onclick = async () => {
+    const mid = $("who").value; if (!mid) return;
+    await del(`checkins?event_id=eq.${eventId}&member_id=eq.${mid}`);
+    toast("신청을 취소했습니다"); refreshRoster();
+  };
+
+  async function refreshRoster() {
+    const rows = await get(`checkins?event_id=eq.${eventId}&order=created_at&select=entity_ids,delegate,memo,is_late,members(nickname)`);
+    $("cicnt").textContent = `${rows.length}명`;
+    $("roster").innerHTML = rows.map(c => {
+      const weps = c.delegate ? "아무거나 🤝" : c.entity_ids.map(id => EMAP.get(id)?.name || id).join(", ");
+      return `<li><b>${esc(c.members.nickname)}</b> — ${esc(weps)}${c.memo ? ` <span class="hint">(${esc(c.memo)})</span>` : ""}${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각신청</span>' : ""}</li>`;
+    }).join("") || '<span class="hint">아직 아무도 신청하지 않았습니다 — 첫 번째가 되어보세요!</span>';
+  }
+  refreshRoster();
+  pollTimer = setInterval(refreshRoster, 7000);
+}
+
+// ================= 콜러 대시보드 =================
+async function pageAdmin(key) {
+  const gs = await get(`guilds?slug=eq.${G.slug}&admin_key=eq.${encodeURIComponent(key)}&select=id`);
+  if (!gs.length) return $("view").innerHTML = '<div class="center">관리 키가 올바르지 않습니다</div>';
+  $("crumb").textContent = G.name + " · 콜러 대시보드";
+  await loadMembers();
+  const templates = await get(`templates?game_id=eq.${G.game_id}&or=(guild_id.eq.${G.id},guild_id.is.null)&order=created_at&select=*`);
+  const events = await get(`events?guild_id=eq.${G.id}&status=neq.canceled&order=created_at.desc&limit=15&select=*`);
+
+  $("view").innerHTML = `
+    <div class="panel">
+      <h1>🛡 콜러 대시보드</h1>
+      <div class="row" style="margin-top:8px">
+        <select id="tpl">${templates.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join("")}</select>
+        <input type="text" id="evtitle" placeholder="이벤트 제목 (비우면 조합 이름)" style="min-width:200px">
+        <input type="datetime-local" id="evtime">
+        <button class="btn" id="mkev">+ 이벤트 만들기</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <select id="evsel"><option value="">— 이벤트 선택 —</option>${events.map(e => `<option value="${e.id}">${esc(e.title)}${e.starts_at ? " · " + fmtTime(e.starts_at) : ""}</option>`).join("")}</select>
+        <button class="btn ghost sm" id="copyurl">체크인 링크 복사</button>
+        <button class="btn ghost sm" id="delev" style="color:var(--warn); border-color:var(--warn)">🗑 이벤트 삭제</button>
+      </div>
+    </div>
+    <div class="cols" id="board" style="display:none">
+      <div class="panel"><h2>체크인 <b id="cicnt2"></b></h2><div id="pool"></div><p class="hint">참가자를 슬롯으로 <b>드래그</b>해서 배정 (클릭→클릭도 가능). 배정된 슬롯끼리 드래그하면 자리 교체. 금색 태그 = 오늘 낸 무기 중 이 조합에 필요한 것.</p></div>
+      <div class="panel"><h2>조합 슬롯</h2>
+        <div class="row" style="margin-bottom:8px"><button class="btn sm" id="auto">⚡ 자동 초안</button><button class="btn ghost sm" id="clearAll">배정 초기화</button></div>
+        <div id="slots"></div><p class="hint">📌 = 핀 고정(자동 초안이 건드리지 않음)</p></div>
+      <div class="panel"><h2>디스코드 발송문</h2><div class="disc"><pre id="msg"></pre></div>
+        <button class="btn" style="width:100%; margin-top:8px" id="copymsg">📋 결과 복사</button></div>
+    </div>`;
+
+  let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
+
+  $("mkev").onclick = async () => {
+    const t = templates.find(x => x.id === $("tpl").value);
+    const title = $("evtitle").value.trim() || t.name;
+    const starts = $("evtime").value ? new Date($("evtime").value).toISOString() : null;
+    const rows = await post("events", { guild_id: G.id, template_id: t.id, title, starts_at: starts, spec: t.spec, slots: t.slots, status: "open" });
+    toast("이벤트 생성 완료 — 체크인 링크를 디코에 붙여넣으세요");
+    const opt = document.createElement("option"); opt.value = rows[0].id; opt.textContent = title + " (open)";
+    $("evsel").insertBefore(opt, $("evsel").children[1]); $("evsel").value = rows[0].id;
+    openEvent(rows[0].id);
+  };
+  $("evsel").onchange = e => e.target.value ? openEvent(e.target.value) : null;
+  $("copyurl").onclick = () => {
+    if (!EV) return toast("이벤트를 먼저 선택하세요");
+    const url = location.href.split("#")[0] + `#/g/${G.slug}/e/${EV.id}`;
+    navigator.clipboard.writeText(`⚔️ ${EV.title} 참가 신청 → ${url}`).then(() => toast("복사됨! 디코에 붙여넣으세요"));
+  };
+
+  async function openEvent(id) {
+    const evs = await get(`events?id=eq.${id}&select=*`); EV = evs[0];
+    // 장비 정보가 없는 (구버전) 이벤트면 템플릿에서 자동으로 채워넣기
+    if (EV.template_id && EV.slots.some(s => !s.gear)) {
+      const tp = await get(`templates?id=eq.${EV.template_id}&select=slots`);
+      if (tp.length) {
+        let changed = false;
+        EV.slots.forEach((s, i) => { if (!s.gear && tp[0].slots[i]?.gear) { s.gear = tp[0].slots[i].gear; changed = true; } });
+        if (changed) await patch(`events?id=eq.${EV.id}`, { slots: EV.slots });
+      }
+    }
+    const asg = await get(`assignments?event_id=eq.${id}&select=*`);
+    ASSIGN = {}; for (const a of asg) ASSIGN[a.slot_index] = a;
+    $("board").style.display = "";
+    await refresh();
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = setInterval(refresh, 7000);
+  }
+  async function refresh() {
+    CHECKINS = await get(`checkins?event_id=eq.${EV.id}&order=created_at&select=*,members(id,nickname,member_entities(entity_id))`);
+    renderPool(); renderSlots(); renderMsg();
+  }
+  const needIds = () => new Set(EV.slots.filter(s => s.require.type === "entity").map(s => s.require.value));
+  function candWeapons(c) { // 이 참가자가 "오늘" 낼 수 있는 무기 풀
+    if (c.delegate) return (c.members.member_entities || []).map(x => x.entity_id);
+    return c.entity_ids;
+  }
+  function eligible(c, req) {
+    const pool = candWeapons(c);
+    if (req.type === "entity") { if (pool.includes(req.value)) return { eid: req.value, how: c.delegate ? "deleg" : "today" }; return null; }
+    const hit = pool.find(eid => EMAP.get(eid)?.category === req.value);
+    return hit ? { eid: hit, how: c.delegate ? "deleg" : "today" } : null;
+  }
+  const assignedMids = () => new Set(Object.values(ASSIGN).map(a => a.member_id));
+
+  function renderPool() {
+    const box = $("pool"); box.innerHTML = "";
+    const used = assignedMids(); const needs = needIds();
+    let free = 0;
+    for (const c of CHECKINS) {
+      const mid = c.members.id;
+      const d = document.createElement("div"); d.className = "mem" + (picked === mid ? " sel" : "");
+      if (used.has(mid)) d.style.opacity = ".35";
+      else free++;
+      const weps = c.delegate ? '<span class="wtag hit">아무거나 🤝</span>' :
+        c.entity_ids.map(id => `<span class="wtag${needs.has(id) ? " hit" : ""}">${esc(EMAP.get(id)?.name || id)}</span>`).join("");
+      d.innerHTML = `<span class="nm">${esc(c.members.nickname)}</span>${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각</span>' : ""}<div>${weps}</div>${c.memo ? `<div class="sub">💬 ${esc(c.memo)}</div>` : ""}`;
+      d.draggable = !used.has(mid);
+      d.addEventListener("dragstart", e => e.dataTransfer.setData("text/plain", "m:" + mid));
+      d.onclick = () => { if (used.has(mid)) return; picked = picked === mid ? null : mid; renderPool(); if (picked && selSlot != null) placeSel(); };
+      box.appendChild(d);
+    }
+    $("cicnt2").textContent = `${CHECKINS.length}명 신청 / ${free}명 대기`;
+  }
+  // 역할순 정렬: 콜러 → 탱 → 힐러 → 서포터 → 딜러
+  function posPrio(pos) {
+    const p = String(pos);
+    if (p.includes("콜러")) return 0;
+    if (p.includes("탱")) return 1;
+    if (p.includes("힐")) return 2;
+    if (p.includes("서폿") || p.includes("서포터")) return 3;
+    return 4; // 딜러/근딜/원딜 등
+  }
+  const slotOrder = () => EV.slots.map((s, i) => ({ s, i })).sort((a, b) => posPrio(a.s.pos) - posPrio(b.s.pos) || a.i - b.i).map(x => x.i);
+  function renderSlots() {
+    const box = $("slots"); box.innerHTML = "";
+    slotOrder().forEach(i => { const s = EV.slots[i];
+      const a = ASSIGN[i];
+      const el = document.createElement("div"); el.className = "slot" + (selSlot === i ? " sel" : "");
+      // 장비 3칸 (갑옷/머리/신발) — 배정된 사람에게 귀속, 사람이 이동하면 같이 이동
+      const ghost = !(a && a.member_id);
+      const g = (!ghost ? (a.gear || s.gear) : s.gear) || {};
+      const gearBoxes = ["head", "armor", "shoes"]
+        .map(k => g[k] ? `<button class="ibox gearbox${ghost ? " ghost" : ""}" data-i="${i}" data-k="${k}"${ghost ? "" : ' draggable="true"'} title="장비 변경 (드래그하면 다른 사람과 교환)">${iconImg(g[k])}</button>` : "")
+        .join("");
+      let body;
+      if (a && a.member_id) {
+        const m = MEMBERS.find(x => x.id === a.member_id);
+        body = `<div class="who icons">
+          <button class="ibox wbox" data-i="${i}" draggable="true" title="무기 변경 (클릭=선택, 드래그=다른 사람과 교환)">${iconImg(a.entity_id)}</button>${gearBoxes}
+          <span class="nm">${esc(m?.nickname || "?")}</span>
+          <button class="pinbtn" data-i="${i}" title="핀 고정">${a.pinned ? "📌" : "📍"}</button>
+          <button class="x" data-i="${i}">✕</button></div>`;
+      } else {
+        const reqIcon = s.require.type === "entity" ? `<span class="ibox ghost">${iconImg(s.require.value)}</span>` : "";
+        body = `<div class="who icons">${reqIcon}${gearBoxes}<span class="empty">— 비어 있음</span></div>`;
+      }
+      el.innerHTML = `<div class="req"><span class="pos">${esc(s.pos)}</span>${esc(s.require.label)}</div>${body}`;
+      el.onclick = e => {
+        if (e.target.closest(".x, .pinbtn, .ibox")) return;
+        selSlot = selSlot === i ? null : i; renderSlots();
+        if (picked && selSlot != null) placeSel();
+      };
+      // 참가자 카드를 슬롯 위로 드래그해서 배정
+      el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("over"); });
+      el.addEventListener("dragleave", () => el.classList.remove("over"));
+      el.addEventListener("drop", async e => {
+        e.preventDefault(); el.classList.remove("over");
+        const d = e.dataTransfer.getData("text/plain");
+        if (d.startsWith("m:")) await placeMember(d.slice(2), i);
+        else if (d.startsWith("w:")) await swapWeapon(+d.slice(2), i);
+        else if (d.startsWith("g:")) { const [, from, k] = d.split(":"); await swapGear(+from, i, k); }
+      });
+      box.appendChild(el);
+    });
+    box.querySelectorAll(".x").forEach(x => x.onclick = async () => {
+      const i = +x.dataset.i;
+      if (ASSIGN[i]?.id) await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${i}`);
+      delete ASSIGN[i]; renderAll();
+    });
+    box.querySelectorAll(".wbox").forEach(b => b.addEventListener("dragstart", e => {
+      e.stopPropagation();
+      e.dataTransfer.setData("text/plain", "w:" + b.dataset.i);
+    }));
+    box.querySelectorAll(".gearbox:not(.ghost)").forEach(b => b.addEventListener("dragstart", e => {
+      e.stopPropagation();
+      e.dataTransfer.setData("text/plain", "g:" + b.dataset.i + ":" + b.dataset.k);
+    }));
+    box.querySelectorAll(".wbox").forEach(b => b.onclick = async e => {
+      e.stopPropagation();
+      const i = +b.dataset.i; const a = ASSIGN[i]; if (!a) return;
+      const m = MEMBERS.find(x => x.id === a.member_id);
+      const ci = CHECKINS.find(x => x.members.id === a.member_id);
+      // 콜러 재량: 전체 무기에서 자유 선택. 오늘 낸 무기는 금색 강조 + 앞쪽 정렬
+      const today = new Set([a.entity_id, ...(ci ? candWeapons(ci) : (m?.member_entities || []).map(x => x.entity_id))].filter(Boolean));
+      const allWeps = ENTITIES.filter(x => !GEAR_CATS.includes(x.category)).map(x => x.id);
+      const ids = [...new Set([...today, ...allWeps])];
+      const sel = await pickEntity(`${m?.nickname || ""} — 무기 선택 (금색 = 오늘 낼 수 있는 무기)`, ids, today);
+      if (!sel || sel === a.entity_id) return;
+      ASSIGN[i].entity_id = sel;
+      await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(i));
+      renderSlots(); renderMsg(); toast("무기를 변경했습니다");
+    });
+    box.querySelectorAll(".gearbox").forEach(b => b.onclick = async e => {
+      e.stopPropagation();
+      const i = +b.dataset.i, k = b.dataset.k;
+      const catName = { head: "머리", armor: "갑옷", shoes: "신발" }[k];
+      const ids = ENTITIES.filter(x => x.category === catName).map(x => x.id);
+      const sel = await pickEntity(`${EV.slots[i].pos} — ${catName} 변경`, ids);
+      if (!sel) return;
+      if (ASSIGN[i] && ASSIGN[i].member_id) {
+        // 배정된 사람의 장비 — 그 사람에게 귀속 (자리를 옮겨도 따라감)
+        ASSIGN[i].gear = { ...(ASSIGN[i].gear || EV.slots[i].gear || {}), [k]: sel };
+        await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(i));
+      } else {
+        // 빈 슬롯의 권장 장비 — 이 이벤트의 기본값
+        EV.slots[i].gear = { ...(EV.slots[i].gear || {}), [k]: sel };
+        await patch(`events?id=eq.${EV.id}`, { slots: EV.slots });
+      }
+      renderSlots(); toast("장비를 변경했습니다");
+    });
+    box.querySelectorAll(".pinbtn").forEach(p => p.onclick = async () => {
+      const i = +p.dataset.i; if (!ASSIGN[i]) return;
+      ASSIGN[i].pinned = !ASSIGN[i].pinned;
+      await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(i));
+      renderSlots();
+    });
+  }
+  const rowOf = i => ({ event_id: EV.id, slot_index: i, member_id: ASSIGN[i].member_id, entity_id: ASSIGN[i].entity_id, pinned: !!ASSIGN[i].pinned, source: ASSIGN[i].source || "manual", gear: ASSIGN[i].gear ?? null });
+  async function placeMember(mid, idx) {
+    const c = CHECKINS.find(x => x.members.id === mid);
+    const req = EV.slots[idx].require;
+    const hit = c ? eligible(c, req) : null;
+    // 콜러 재량: 무기가 안 맞아도 배정은 항상 허용. 무기는 최선값으로 채우고 아이콘 클릭으로 조정
+    let eid = hit?.eid;
+    if (!eid) {
+      const pool = c ? candWeapons(c) : [];
+      eid = (req.type === "entity" ? req.value : ENTITIES.find(x => x.category === req.value)?.id) || pool[0] || null;
+      toast("오늘 낸 무기와 다른 슬롯입니다 — 무기 아이콘을 눌러 조정하세요");
+    }
+    let carryGear = null; // 이미 배정돼 있던 사람이면 장비 세트가 같이 따라간다
+    for (const k of Object.keys(ASSIGN)) if (ASSIGN[k].member_id === mid) { carryGear = ASSIGN[k].gear ?? null; await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${k}`); delete ASSIGN[k]; }
+    ASSIGN[idx] = { member_id: mid, entity_id: eid, pinned: false, source: "manual", gear: carryGear ?? (EV.slots[idx].gear || null) };
+    await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(idx));
+    renderAll(); return true;
+  }
+  async function placeSel() {
+    await placeMember(picked, selSlot);
+    picked = null; selSlot = null; renderAll();
+  }
+  // 무기 교환: 배정된 두 사람의 무기만 서로 맞바꿈 (사람·장비는 그대로)
+  async function swapWeapon(from, to) {
+    if (from === to) return;
+    const a = ASSIGN[from], b = ASSIGN[to];
+    if (!a || !b) { toast("빈 슬롯과는 교환할 수 없습니다"); return; }
+    [a.entity_id, b.entity_id] = [b.entity_id, a.entity_id];
+    await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(from));
+    await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(to));
+    renderSlots(); renderMsg(); toast("무기를 교환했습니다");
+  }
+  // 장비 한 조각 교환 (머리/갑옷/신발 중 끌어온 것만)
+  async function swapGear(from, to, k) {
+    if (from === to) return;
+    const a = ASSIGN[from], b = ASSIGN[to];
+    if (!a || !b) { toast("빈 슬롯과는 교환할 수 없습니다"); return; }
+    const ga = { ...(a.gear || EV.slots[from].gear || {}) };
+    const gb = { ...(b.gear || EV.slots[to].gear || {}) };
+    [ga[k], gb[k]] = [gb[k], ga[k]];
+    a.gear = ga; b.gear = gb;
+    await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(from));
+    await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(to));
+    renderSlots(); toast("장비를 교환했습니다");
+  }
+  $("auto").onclick = async () => {
+    // 핀 고정 유지, 나머지 슬롯을 후보 적은 순으로 채움
+    for (const k of Object.keys(ASSIGN)) if (!ASSIGN[k].pinned) { await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${k}`); delete ASSIGN[k]; }
+    const used = new Set(Object.values(ASSIGN).map(a => a.member_id));
+    const open = EV.slots.map((s, i) => ({ i, req: s.require })).filter(x => !ASSIGN[x.i]);
+    const cands = open.map(x => CHECKINS.filter(c => !used.has(c.members.id) && eligible(c, x.req)));
+    const order = open.map((_, k) => k).sort((a, b) => cands[a].length - cands[b].length);
+    for (const k of order) {
+      const pool = cands[k].filter(c => !used.has(c.members.id))
+        .sort((a, b) => (a.delegate ? 1 : 0) - (b.delegate ? 1 : 0) || candWeapons(a).length - candWeapons(b).length);
+      if (!pool.length) continue;
+      const c = pool[0]; const hit = eligible(c, open[k].req);
+      used.add(c.members.id);
+      ASSIGN[open[k].i] = { member_id: c.members.id, entity_id: hit.eid, pinned: false, source: "auto", gear: EV.slots[open[k].i].gear || null };
+      await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(open[k].i));
+    }
+    renderAll(); toast("자동 초안 완료 — 드래그 대신 클릭으로 수정하세요");
+  };
+  $("clearAll").onclick = async () => {
+    await del(`assignments?event_id=eq.${EV.id}`); ASSIGN = {}; renderAll();
+  };
+  function renderMsg() {
+    const lines = [`⚔️ **${EV.title}**${EV.starts_at ? " — " + fmtTime(EV.starts_at) + " 출발" : ""}`, EV.spec || "", ""];
+    const missing = [];
+    slotOrder().forEach(i => { const s = EV.slots[i];
+      const a = ASSIGN[i];
+      if (a && a.member_id) {
+        const m = MEMBERS.find(x => x.id === a.member_id);
+        lines.push(`${s.pos} — ${m?.nickname || "?"} (${EMAP.get(a.entity_id)?.name || ""})`);
+      } else missing.push(`${s.pos}(${s.require.label})`);
+    });
+    $("msg").innerHTML = esc(lines.join("\n")).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>") +
+      (missing.length ? `\n\n<span class="miss">⚠ 미충원: ${esc(missing.join(", "))}</span>` : "\n\n✅ 전 슬롯 충원");
+  }
+  function renderAll() { renderPool(); renderSlots(); renderMsg(); }
+  $("copymsg").onclick = () => {
+    const lines = [`⚔️ **${EV.title}**${EV.starts_at ? " — " + fmtTime(EV.starts_at) + " 출발" : ""}`, EV.spec || "", ""];
+    slotOrder().forEach(i => { const s = EV.slots[i]; const a = ASSIGN[i]; if (a?.member_id) { const m = MEMBERS.find(x => x.id === a.member_id); lines.push(`${s.pos} — ${m?.nickname} (${EMAP.get(a.entity_id)?.name || ""})`); } });
+    navigator.clipboard.writeText(lines.join("\n")).then(() => toast("복사됨! 디코에 붙여넣으세요"));
+  };
+  $("delev").onclick = async () => {
+    if (!EV) return toast("이벤트를 먼저 선택하세요");
+    if (!confirm(`'${EV.title}' 이벤트를 완전히 삭제할까요?\n체크인·배정 기록도 함께 삭제되며 출석 집계에서 빠집니다.`)) return;
+    const gone = await api(`events?id=eq.${EV.id}`, { method: "DELETE", headers: { Prefer: "return=representation" } });
+    if (!gone || !gone.length) return toast("삭제 권한이 없습니다 — 관리자에게 정책 추가 필요");
+    const opt = $("evsel").querySelector(`option[value="${EV.id}"]`); if (opt) opt.remove();
+    EV = null; $("evsel").value = ""; $("board").style.display = "none";
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    toast("이벤트를 삭제했습니다");
+  };
+
+  if (events.length) { $("evsel").value = events[0].id; openEvent(events[0].id); }
+}
+
+route();
+</script>
+</body>
+</html>
