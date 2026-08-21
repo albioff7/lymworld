@@ -98,6 +98,8 @@
   .slotrow{display:flex; align-items:flex-start; gap:10px}
   .posbox{width:58px; flex:none; display:flex; flex-direction:column; padding-top:6px}
   .posbox .pos{color:var(--gold); font-weight:700; font-size:13.5px}
+  .posedit{cursor:pointer}
+  .posedit:hover{text-decoration:underline dotted}
   .posbox .reqlbl{font-size:10px; color:var(--muted); line-height:1.25}
   .slotrow .icons{flex:1; gap:6px; flex-wrap:nowrap; justify-content:space-between; align-items:flex-start}
   .slotrow .ibox{width:48px; height:48px}
@@ -906,11 +908,11 @@ async function pageAdmin(key) {
         who2 = `<div class="who2"><span class="empty">비어 있음</span></div>`;
       }
       el.innerHTML = `<div class="slotrow">
-        <div class="posbox"><span class="pos">${esc(s.pos)}</span><span class="reqlbl">${s.require.type === "entity" ? esc(s.require.label) : ""}</span></div>
+        <div class="posbox"><span class="pos posedit" data-i="${i}" title="클릭해서 포지션 이름 변경">${esc(s.pos)}</span><span class="reqlbl">${s.require.type === "entity" ? esc(s.require.label) : ""}</span></div>
         <div class="icons">${wstack}${gearStacks}</div>
         ${who2}</div>`;
       el.onclick = e => {
-        if (e.target.closest(".x, .pinbtn, .ibox")) return;
+        if (e.target.closest(".x, .pinbtn, .ibox, .posedit")) return;
         selSlot = selSlot === i ? null : i; renderSlots();
         if (picked && selSlot != null) placeSel();
       };
@@ -931,6 +933,15 @@ async function pageAdmin(key) {
       const i = +x.dataset.i;
       if (ASSIGN[i]?.id) await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${i}`);
       delete ASSIGN[i]; renderAll();
+    });
+    box.querySelectorAll(".posedit").forEach(p => p.onclick = async e => {
+      e.stopPropagation();
+      const i = +p.dataset.i;
+      const t = await askText("포지션 이름 변경 (예: 원딜, 근딜, 힐러)", EV.slots[i].pos);
+      if (t == null || !t.trim()) return;
+      EV.slots[i].pos = t.trim().slice(0, 10);
+      await patch(`events?id=eq.${EV.id}`, { slots: EV.slots });
+      renderSlots(); renderMsg();
     });
     box.querySelectorAll('.nm[draggable="true"]').forEach(n => n.addEventListener("dragstart", e => {
       e.stopPropagation();
