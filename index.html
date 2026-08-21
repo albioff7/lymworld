@@ -106,9 +106,12 @@
   .ibox:hover{border-color:var(--gold)}
   .modal{position:fixed; inset:0; background:rgba(0,0,0,.65); display:flex; align-items:center; justify-content:center; z-index:50; padding:16px}
   .modal .box{background:var(--surface); border:1px solid var(--gold-deep); border-radius:10px; padding:16px; max-width:560px; max-height:72vh; overflow:auto}
+  .modal .box.big{max-width:1100px; width:94vw; max-height:84vh; padding:18px 22px}
+  .psec h4{font-family:'Noto Serif KR',serif; color:var(--gold); font-size:14.5px; font-weight:600; margin:14px 0 8px; border-bottom:1px solid var(--line); padding-bottom:5px}
+  .psec:first-of-type h4{margin-top:6px}
   .modal h3{margin:0 0 10px; color:var(--gold); font-size:15px; font-family:'Noto Serif KR',serif}
   .pgrid{display:flex; flex-wrap:wrap; gap:8px}
-  .pitem{width:68px; background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:5px 3px; cursor:pointer; text-align:center; font-size:10.5px; color:var(--muted); line-height:1.25; font-family:inherit}
+  .pitem{width:82px; background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:6px 3px; cursor:pointer; text-align:center; font-size:11px; color:#D8D2C2; line-height:1.25; font-family:inherit}
   .pitem img{width:44px; height:44px; display:block; margin:0 auto 2px}
   .pitem:hover{border-color:var(--gold); color:var(--gold)}
   .pitem.hl{border-color:var(--gold-deep); background:var(--gold-soft); color:var(--gold)}
@@ -209,15 +212,29 @@ const sortSlotIdx = slots => slots.map((s, i) => ({ s, i })).sort((a, b) => posP
 function pickEntity(title, ids, hl = new Set()) {
   return new Promise(res => {
     const ov = document.createElement("div"); ov.className = "modal";
-    const sorted = [...ids].sort((a, b) => (hl.has(b) ? 1 : 0) - (hl.has(a) ? 1 : 0));
-    ov.innerHTML = `<div class="box"><h3>${esc(title)}</h3>
-      <input type="text" class="psearch" placeholder="이름으로 검색..." style="width:100%; margin-bottom:10px">
-      <div class="pgrid">${sorted.map(id => `<button class="pitem${hl.has(id) ? " hl" : ""}" data-id="${id}" data-name="${esc(EMAP.get(id)?.name || "")}">${iconImg(id, 44)}${esc(EMAP.get(id)?.name || id)}</button>`).join("")}</div></div>`;
+    const item = id => `<button class="pitem${hl.has(id) ? " hl" : ""}" data-id="${id}" data-name="${esc(EMAP.get(id)?.name || "")}">${iconImg(id, 44)}${esc(EMAP.get(id)?.name || id)}</button>`;
+    // 대분류별 그룹 (검 한 줄, 도끼 한 줄 … 순차 나열)
+    const groups = new Map();
+    for (const id of ids) {
+      const cat = EMAP.get(id)?.category || "기타";
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat).push(id);
+    }
+    let body = "";
+    if (hl.size) body += `<div class="psec"><h4>★ 유저 선호 무기</h4><div class="pgrid">${[...hl].filter(id => EMAP.has(id)).map(item).join("")}</div></div>`;
+    for (const [cat, list] of groups) body += `<div class="psec"><h4>${esc(cat)}</h4><div class="pgrid">${list.map(item).join("")}</div></div>`;
+    ov.innerHTML = `<div class="box big"><h3>${esc(title)}</h3>
+      <input type="text" class="psearch" placeholder="이름으로 검색..." style="width:100%; margin-bottom:6px">
+      ${body}</div>`;
     const q = ov.querySelector(".psearch");
     q.addEventListener("click", e => e.stopPropagation());
     q.addEventListener("input", () => {
       const v = q.value.trim();
       ov.querySelectorAll(".pitem").forEach(p => p.style.display = (!v || p.dataset.name.includes(v)) ? "" : "none");
+      ov.querySelectorAll(".psec").forEach(sec => {
+        const any = [...sec.querySelectorAll(".pitem")].some(p => p.style.display !== "none");
+        sec.style.display = any ? "" : "none";
+      });
     });
     ov.addEventListener("click", e => {
       const b = e.target.closest(".pitem");
