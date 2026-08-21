@@ -125,6 +125,17 @@
   .pitem:hover{border-color:var(--gold); color:var(--gold)}
   .pitem.hl{border-color:var(--gold-deep); background:var(--gold-soft); color:var(--gold)}
   .chip img{width:18px; height:18px; vertical-align:-4px; margin-right:3px}
+  /* 표지 */
+  .cover{position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:82vh; text-align:center; gap:14px; overflow:hidden}
+  .coverlogo{display:flex; flex-direction:column; line-height:1.05}
+  .clw{font-family:'Jua','IBM Plex Sans KR',sans-serif; font-size:clamp(44px,8vw,72px); color:#E8A33D; text-shadow:3px 3px 0 #59391D, 0 0 24px rgba(232,163,61,.35); letter-spacing:.02em}
+  .cst{font-family:'Jua','IBM Plex Sans KR',sans-serif; font-size:clamp(18px,3vw,26px); color:var(--gold); letter-spacing:.55em; margin-top:6px; text-indent:.55em}
+  .coverimg{max-width:min(460px,88vw); border-radius:16px; border:3px solid var(--gold-deep); box-shadow:0 8px 40px rgba(0,0,0,.55), 0 0 30px rgba(201,162,51,.18); margin-top:6px}
+  .coverdesc{color:var(--muted); font-size:14.5px; letter-spacing:.06em; margin:4px 0 2px}
+  .coverbtn{font-size:17px; padding:13px 46px; border-radius:10px; margin-left:0 !important}
+  .spark{position:absolute; color:var(--gold); font-size:20px; opacity:0; animation:twinkle 2.6s ease-in-out infinite}
+  @keyframes twinkle{ 0%,100%{opacity:0; transform:scale(.6)} 50%{opacity:.9; transform:scale(1.15)} }
+  @media (prefers-reduced-motion: reduce){ .spark{animation:none; opacity:.5} }
   .toast{position:fixed; bottom:20px; left:50%; transform:translateX(-50%); background:var(--gold); color:#191509; padding:8px 18px; border-radius:999px; font-weight:700; font-size:13.5px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:99; max-width:90vw}
   .toast.show{opacity:1}
   .hint{color:var(--muted); font-size:12.5px; margin:6px 0 0}
@@ -301,11 +312,33 @@ async function route() {
       if (p[2] === "admin" && p[3]) return await pageAdmin(p[3]);
       return await pageHome();
     }
-    v.innerHTML = '<div class="center">주소가 올바르지 않습니다. 길드 링크로 접속해주세요.<br>예: <b>app.html#/g/lym</b></div>';
+    return pageCover(); // 주소 없이 접속 → 표지
   } catch (e) {
     v.innerHTML = `<div class="center">오류: ${esc(e.message)}</div>`;
   }
 }
+
+// ================= 표지 =================
+const DEFAULT_GUILD = "lym";
+function pageCover() {
+  document.querySelector("header.top").style.display = "none"; // 표지에선 상단 로고 숨김 (표지가 곧 로고)
+  $("view").innerHTML = `
+    <div class="cover">
+      <span class="spark" style="top:8%; left:16%">✦</span>
+      <span class="spark" style="top:14%; right:14%; animation-delay:.7s">✦</span>
+      <span class="spark" style="bottom:22%; left:9%; animation-delay:1.3s">✦</span>
+      <span class="spark" style="bottom:14%; right:11%; animation-delay:.4s">✧</span>
+      <div class="coverlogo">
+        <span class="clw">LYM WORLD</span>
+        <span class="cst">시 트 지</span>
+      </div>
+      <img src="chars.png" alt="Lym World" class="coverimg">
+      <p class="coverdesc">길드 파티 편성 · 무기 등록 · 원클릭 체크인</p>
+      <button class="btn join pulse coverbtn" onclick="location.hash='#/g/${DEFAULT_GUILD}'">⚔️ 입장하기</button>
+    </div>`;
+}
+// 표지 외 화면에선 상단 로고 다시 표시
+window.addEventListener("hashchange", () => { document.querySelector("header.top").style.display = location.hash.replace(/^#\/?/, "") ? "" : "none"; });
 
 // ================= 길드 홈 =================
 async function pageHome() {
