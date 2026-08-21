@@ -310,7 +310,7 @@ async function pageRegister() {
   for (const e of ENTITIES) { if (GEAR_CATS.includes(e.category)) continue; (byCat[e.category] ??= []).push(e); }
   for (const [cat, list] of Object.entries(byCat)) {
     const d = document.createElement("div"); d.className = "cat";
-    d.innerHTML = `<h3 style="display:flex; justify-content:space-between; align-items:center"><span>${esc(cat)}</span><button class="btn ghost sm allcat">계열 전체 선택</button></h3>`;
+    d.innerHTML = `<h3 style="display:flex; align-items:center; gap:10px"><span>${esc(cat)}</span><button class="btn ghost sm allcat" style="padding:2px 9px; font-size:11.5px">전체선택</button></h3>`;
     const chips = document.createElement("div"); chips.className = "chips";
     for (const e of list) {
       const b = document.createElement("button"); b.className = "chip"; b.dataset.id = e.id; b.dataset.name = e.name;
