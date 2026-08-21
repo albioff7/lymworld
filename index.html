@@ -13,7 +13,11 @@
   }
   *{box-sizing:border-box}
   body{margin:0; background:var(--bg); color:var(--ink); font-family:'IBM Plex Sans KR','Apple SD Gothic Neo','Malgun Gothic',sans-serif; font-size:15px; line-height:1.6}
-  .wrap{max-width:1100px; margin:0 auto; padding:20px 16px 90px}
+  .wrap{max-width:1340px; margin:0 auto; padding:20px 16px 90px}
+  .wtile{width:88px; background:var(--raised); border:1px solid var(--line); border-radius:8px; padding:7px 3px 6px; cursor:pointer; text-align:center; font-size:11px; color:#D8D2C2; line-height:1.25; font-family:inherit}
+  .wtile img{width:44px; height:44px; display:block; margin:0 auto 3px}
+  .wtile.on{background:var(--gold-soft); border-color:var(--gold); color:var(--gold); font-weight:700}
+  .wtile:hover{border-color:var(--gold-deep)}
   header.top{display:flex; align-items:center; justify-content:center; gap:12px; border-bottom:2px solid var(--gold-deep); padding-bottom:10px; margin-bottom:16px}
   .logohead{display:flex; align-items:center; gap:16px; cursor:pointer}
   .logohead img{height:62px; border-radius:12px; border:2px solid var(--gold-deep)}
@@ -405,17 +409,17 @@ async function pageRegister() {
   for (const [cat, list] of Object.entries(byCat)) {
     const d = document.createElement("div"); d.className = "cat";
     d.innerHTML = `<h3 style="display:flex; align-items:center; gap:10px"><span>${esc(cat)}</span><button class="btn ghost sm allcat" style="padding:2px 9px; font-size:11.5px">전체선택</button></h3>`;
-    const chips = document.createElement("div"); chips.className = "chips";
+    const chips = document.createElement("div"); chips.className = "pgrid";
     for (const e of list) {
-      const b = document.createElement("button"); b.className = "chip"; b.dataset.id = e.id; b.dataset.name = e.name;
-      b.innerHTML = (iconUrl(e.id) ? `<img src="${iconUrl(e.id, 32)}" alt="" loading="lazy">` : "") + esc(e.name);
+      const b = document.createElement("button"); b.className = "wtile"; b.dataset.id = e.id; b.dataset.name = e.name;
+      b.innerHTML = (iconUrl(e.id) ? `<img src="${iconUrl(e.id, 44)}" alt="" loading="lazy">` : "") + esc(e.name.replace(/ ?스태프$/, ""));
       b.onclick = () => { b.classList.toggle("on") ? selected.add(e.id) : selected.delete(e.id); $("selcnt").textContent = `(${selected.size}개)`; };
       chips.appendChild(b);
     }
     d.appendChild(chips); catBox.appendChild(d);
     // 계열 전체 선택/해제 토글: 검 누르면 검 8종 전부
     d.querySelector(".allcat").onclick = () => {
-      const btns = [...chips.querySelectorAll(".chip")];
+      const btns = [...chips.querySelectorAll(".wtile")];
       const allOn = btns.every(b => b.classList.contains("on"));
       for (const b of btns) {
         b.classList.toggle("on", !allOn);
@@ -426,13 +430,13 @@ async function pageRegister() {
   }
   $("q").oninput = e => {
     const q = e.target.value.trim();
-    document.querySelectorAll("#cats .chip").forEach(c => c.style.display = (!q || c.dataset.name.includes(q)) ? "" : "none");
+    document.querySelectorAll("#cats .wtile").forEach(c => c.style.display = (!q || c.dataset.name.includes(q)) ? "" : "none");
   };
   function loadSel(mid) {
     selected.clear();
-    document.querySelectorAll("#cats .chip").forEach(c => c.classList.remove("on"));
+    document.querySelectorAll("#cats .wtile").forEach(c => c.classList.remove("on"));
     const m = MEMBERS.find(x => x.id === mid); if (!m) return;
-    for (const eid of memberWeapons(m)) { selected.add(eid); const c = document.querySelector(`#cats .chip[data-id="${eid}"]`); if (c) c.classList.add("on"); }
+    for (const eid of memberWeapons(m)) { selected.add(eid); const c = document.querySelector(`#cats .wtile[data-id="${eid}"]`); if (c) c.classList.add("on"); }
     $("selcnt").textContent = `(${selected.size}개)`;
   }
   $("who").onchange = e => loadSel(e.target.value);
