@@ -585,7 +585,7 @@ async function pageAdmin(key) {
         const m = MEMBERS.find(x => x.id === a.member_id);
         body = `<div class="who icons">
           <button class="ibox wbox" data-i="${i}" draggable="true" title="무기 변경 (클릭=선택, 드래그=다른 사람과 교환)">${iconImg(a.entity_id)}</button>${gearBoxes}
-          <span class="nm">${esc(m?.nickname || "?")}</span>
+          <span class="nm" draggable="true" data-i="${i}" title="이름을 드래그하면 다른 슬롯과 자리 교체" style="cursor:grab">${esc(m?.nickname || "?")}</span>
           <button class="pinbtn" data-i="${i}" title="핀 고정">${a.pinned ? "📌" : "📍"}</button>
           <button class="x" data-i="${i}">✕</button></div>`;
       } else {
@@ -605,6 +605,7 @@ async function pageAdmin(key) {
         e.preventDefault(); el.classList.remove("over");
         const d = e.dataTransfer.getData("text/plain");
         if (d.startsWith("m:")) await placeMember(d.slice(2), i);
+        else if (d.startsWith("n:")) await movePerson(+d.slice(2), i);
         else if (d.startsWith("w:")) await swapWeapon(+d.slice(2), i);
         else if (d.startsWith("g:")) { const [, from, k] = d.split(":"); await swapGear(+from, i, k); }
       });
@@ -615,6 +616,10 @@ async function pageAdmin(key) {
       if (ASSIGN[i]?.id) await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${i}`);
       delete ASSIGN[i]; renderAll();
     });
+    box.querySelectorAll('.nm[draggable="true"]').forEach(n => n.addEventListener("dragstart", e => {
+      e.stopPropagation();
+      e.dataTransfer.setData("text/plain", "n:" + n.dataset.i);
+    }));
     box.querySelectorAll(".wbox").forEach(b => b.addEventListener("dragstart", e => {
       e.stopPropagation();
       e.dataTransfer.setData("text/plain", "w:" + b.dataset.i);
@@ -684,6 +689,29 @@ async function pageAdmin(key) {
   async function placeSel() {
     await placeMember(picked, selSlot);
     picked = null; selSlot = null; renderAll();
+  }
+  // 새 슬롯에 맞는 무기 고르기: 오늘 낸 무기 중 매칭 → 없으면 슬롯 기본 무기
+  function weaponFor(mid, idx) {
+    const c = CHECKINS.find(x => x.members.id === mid);
+    const req = EV.slots[idx].require;
+    const hit = c ? eligible(c, req) : null;
+    if (hit) return hit.eid;
+    const pool = c ? candWeapons(c) : [];
+    return (req.type === "entity" ? req.value : ENTITIES.find(x => x.category === req.value)?.id) || pool[0] || null;
+  }
+  // 사람 자리 이동/교체: 이름을 드래그 — 장비는 사람을 따라가고, 무기는 새 역할에 맞게 재선정
+  async function movePerson(from, to) {
+    if (from === to) return;
+    const a = ASSIGN[from], b = ASSIGN[to];
+    if (!a) return;
+    await del(`assignments?event_id=eq.${EV.id}&slot_index=in.(${from},${to})`);
+    delete ASSIGN[from]; delete ASSIGN[to];
+    ASSIGN[to] = { ...a, entity_id: weaponFor(a.member_id, to), pinned: false, source: "manual" };
+    if (b) ASSIGN[from] = { ...b, entity_id: weaponFor(b.member_id, from), pinned: false, source: "manual" };
+    await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(to));
+    if (b) await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(from));
+    renderAll();
+    toast(b ? "두 사람의 자리를 교체했습니다 (무기는 역할에 맞게 조정)" : "자리를 이동했습니다");
   }
   // 무기 교환: 배정된 두 사람의 무기만 서로 맞바꿈 (사람·장비는 그대로)
   async function swapWeapon(from, to) {
