@@ -320,6 +320,7 @@ async function route() {
 
 // ================= 표지 =================
 const DEFAULT_GUILD = "lym";
+const DEFAULT_ADMIN_KEY = "2f6d8f1139577f84da4d5dcf"; // 길드 내부 신뢰 모델: 입장 = 곧 대시보드
 function pageCover() {
   document.querySelector("header.top").style.display = "none"; // 표지에선 상단 로고 숨김 (표지가 곧 로고)
   $("view").innerHTML = `
@@ -334,7 +335,7 @@ function pageCover() {
       </div>
       <img src="chars.png" alt="Lym World" class="coverimg">
       <p class="coverdesc">길드 파티 편성 · 무기 등록 · 원클릭 체크인</p>
-      <button class="btn join pulse coverbtn" onclick="location.hash='#/g/${DEFAULT_GUILD}'">⚔️ 입장하기</button>
+      <button class="btn join pulse coverbtn" onclick="location.hash='#/g/${DEFAULT_GUILD}/admin/${DEFAULT_ADMIN_KEY}'">⚔️ 입장하기</button>
     </div>`;
 }
 // 표지 외 화면에선 상단 로고 다시 표시
