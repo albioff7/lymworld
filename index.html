@@ -580,6 +580,9 @@ async function pageAdmin(key) {
   }
   async function refresh() {
     CHECKINS = await get(`checkins?event_id=eq.${EV.id}&order=created_at&select=*,members(id,nickname,member_entities(entity_id))`);
+    // 배정도 서버 기준으로 동기화 (저장 실패한 로컬 상태가 화면에 남지 않도록)
+    const asg = await get(`assignments?event_id=eq.${EV.id}&select=*`);
+    ASSIGN = {}; for (const a of asg) ASSIGN[a.slot_index] = a;
     renderPool(); renderSlots(); renderMsg();
   }
   const needIds = () => new Set(EV.slots.filter(s => s.require.type === "entity").map(s => s.require.value));
@@ -638,7 +641,9 @@ async function pageAdmin(key) {
           <span class="nm" draggable="true" data-i="${i}" title="이름을 드래그하면 다른 슬롯과 자리 교체" style="cursor:grab">${esc(m?.nickname || "?")}</span>
           <button class="x" data-i="${i}">✕</button></div>`;
       } else {
-        wstack = s.require.type === "entity" ? stack(`<span class="ibox ghost">${iconImg(s.require.value)}</span>`, EMAP.get(s.require.value)?.name) : "";
+        wstack = s.require.type === "entity"
+          ? stack(`<span class="ibox ghost">${iconImg(s.require.value)}</span>`, EMAP.get(s.require.value)?.name)
+          : stack(`<span class="ibox emptybox ghost">🗡</span>`, s.require.label); // 계열/자유 슬롯도 무기칸 표시
         who2 = `<div class="who2"><span class="empty">비어 있음</span></div>`;
       }
       el.innerHTML = `<div class="slotrow">
@@ -783,22 +788,36 @@ async function pageAdmin(key) {
     renderSlots(); toast("장비를 교환했습니다");
   }
   $("auto").onclick = async () => {
-    // 핀 고정 유지, 나머지 슬롯을 후보 적은 순으로 채움
-    for (const k of Object.keys(ASSIGN)) if (!ASSIGN[k].pinned) { await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${k}`); delete ASSIGN[k]; }
-    const used = new Set(Object.values(ASSIGN).map(a => a.member_id));
-    const open = EV.slots.map((s, i) => ({ i, req: s.require })).filter(x => !ASSIGN[x.i]);
-    const cands = open.map(x => CHECKINS.filter(c => !used.has(c.members.id) && eligible(c, x.req)));
-    const order = open.map((_, k) => k).sort((a, b) => cands[a].length - cands[b].length);
-    for (const k of order) {
-      const pool = cands[k].filter(c => !used.has(c.members.id))
-        .sort((a, b) => (a.delegate ? 1 : 0) - (b.delegate ? 1 : 0) || candWeapons(a).length - candWeapons(b).length);
-      if (!pool.length) continue;
-      const c = pool[0]; const hit = eligible(c, open[k].req);
-      used.add(c.members.id);
-      ASSIGN[open[k].i] = { member_id: c.members.id, entity_id: hit.eid, pinned: false, source: "auto", gear: EV.slots[open[k].i].gear || null };
-      await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(open[k].i));
-    }
-    renderAll(); toast("자동 초안 완료 — 드래그 대신 클릭으로 수정하세요");
+    try {
+      for (const k of Object.keys(ASSIGN)) if (!ASSIGN[k].pinned) { await del(`assignments?event_id=eq.${EV.id}&slot_index=eq.${k}`); delete ASSIGN[k]; }
+      const used = new Set(Object.values(ASSIGN).map(a => a.member_id));
+      const open = EV.slots.map((s, i) => ({ i, req: s.require })).filter(x => !ASSIGN[x.i]);
+      const people = CHECKINS.filter(c => !used.has(c.members.id));
+      // 최대 매칭 (Kuhn): 여러 역할이 가능한 사람이 엉뚱한 슬롯에 소모되지 않도록
+      const adj = open.map(x => people.map((c, pi) => eligible(c, x.req) ? pi : -1).filter(pi => pi >= 0));
+      const matchP = new Array(people.length).fill(-1); // person -> slot(open index)
+      function tryKuhn(k, seen) {
+        for (const pi of adj[k]) {
+          if (seen.has(pi)) continue;
+          seen.add(pi);
+          if (matchP[pi] === -1 || tryKuhn(matchP[pi], seen)) { matchP[pi] = k; return true; }
+        }
+        return false;
+      }
+      const order = open.map((_, k) => k).sort((a, b) => adj[a].length - adj[b].length);
+      for (const k of order) tryKuhn(k, new Set());
+      let placed = 0;
+      for (let pi = 0; pi < people.length; pi++) {
+        const k = matchP[pi]; if (k === -1) continue;
+        const c = people[pi]; const hit = eligible(c, open[k].req);
+        ASSIGN[open[k].i] = { member_id: c.members.id, entity_id: hit.eid, pinned: false, source: "auto", gear: EV.slots[open[k].i].gear || null };
+        await upsert(`assignments?on_conflict=event_id,slot_index`, rowOf(open[k].i));
+        placed++;
+      }
+      const missing = EV.slots.filter((s, i) => !ASSIGN[i]).length;
+      renderAll();
+      toast(`자동 초안: ${placed}명 배정` + (missing ? ` · ${missing}슬롯 미충원 (해당 무기 신청자 없음)` : " · 전 슬롯 충원!"));
+    } catch (e) { toast("자동 초안 저장 오류: " + e.message.slice(0, 80)); }
   };
   $("clearAll").onclick = async () => {
     await del(`assignments?event_id=eq.${EV.id}`); ASSIGN = {}; renderAll();
