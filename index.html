@@ -59,10 +59,15 @@
   .compact input,.compact select{padding:5px 9px; font-size:12.5px}
   .compact .btn{padding:5px 11px; font-size:12.5px}
   .compact .row{gap:6px; margin-top:5px}
-  .evmini{background:var(--raised); border:1px solid var(--gold-deep); border-radius:7px; padding:7px 10px; margin-bottom:6px; cursor:pointer; font-size:12.5px}
-  .evmini:hover{border-color:var(--gold)}
-  .evmini .t{color:var(--gold); font-weight:700}
-  .evmini .s{color:var(--muted); font-size:11px}
+  .evtabs{position:fixed; left:0; right:0; bottom:0; background:var(--surface); border-top:2px solid var(--gold-deep); display:flex; gap:4px; padding:6px 12px 8px; overflow-x:auto; z-index:20; align-items:center}
+  .etab{background:var(--raised); border:1px solid var(--line); border-radius:0 0 9px 9px; padding:6px 16px; font-size:13px; color:var(--muted); cursor:pointer; white-space:nowrap; font-family:inherit}
+  .etab.on{background:var(--gold); color:#191509; font-weight:700; border-color:var(--gold)}
+  .etab:hover{border-color:var(--gold-deep); color:var(--gold)}
+  .etab.on:hover{color:#191509}
+  .asgrow{display:flex; gap:9px; align-items:center; padding:5px 8px; border-bottom:1px solid var(--line); font-size:13.5px}
+  .asgrow .pos{color:var(--gold); font-weight:700; min-width:56px}
+  .asgrow.mine{background:var(--gold-soft); border-radius:6px}
+  .asgrow .you{color:var(--gold); font-size:11px; font-weight:700}
   .disc{background:#1F2430; border:1px solid #3A4254; border-radius:8px; padding:11px 13px; font-size:13px}
   .disc pre{margin:0; white-space:pre-wrap; font-family:inherit; line-height:1.65}
   .miss{color:var(--warn)}
@@ -154,6 +159,16 @@ function iconImg(eid, size = 44) {
   const u = iconUrl(eid); const e = EMAP.get(eid);
   return u ? `<img src="${u}" alt="" title="${esc(e?.name || "")}" width="${size}" height="${size}" loading="lazy">` : `<span style="font-size:10px">${esc(e?.name || "?")}</span>`;
 }
+// 역할순 정렬: 콜러 → 탱 → 힐러 → 서포터 → 딜러
+function posPrio(pos) {
+  const p = String(pos);
+  if (p.includes("콜러")) return 0;
+  if (p.includes("탱")) return 1;
+  if (p.includes("힐")) return 2;
+  if (p.includes("서폿") || p.includes("서포터")) return 3;
+  return 4;
+}
+const sortSlotIdx = slots => slots.map((s, i) => ({ s, i })).sort((a, b) => posPrio(a.s.pos) - posPrio(b.s.pos) || a.i - b.i).map(x => x.i);
 function pickEntity(title, ids, hl = new Set()) {
   return new Promise(res => {
     const ov = document.createElement("div"); ov.className = "modal";
@@ -336,6 +351,7 @@ async function pageCheckin(eventId) {
       </div>
       <div class="hint">${ev.starts_at ? "출발 " + fmtTime(ev.starts_at) + " · " : ""}${esc(ev.spec || "")}</div>
     </div>
+    <div class="panel"><h2>배정 현황 <span class="hint" style="text-transform:none">— 콜러가 배정하면 실시간으로 표시됩니다</span></h2><div id="asgview"></div></div>
     <div class="panel"><h2>참가 현황 <span id="cicnt" style="color:var(--gold)"></span></h2><ul class="roster" id="roster"></ul></div>
     <div class="panel">
       <h2>참가 신청</h2>
@@ -417,6 +433,19 @@ async function pageCheckin(eventId) {
       const weps = c.delegate ? "아무거나 🤝" : c.entity_ids.map(id => EMAP.get(id)?.name || id).join(", ");
       return `<li><b>${esc(c.members.nickname)}</b> — ${esc(weps)}${c.memo ? ` <span class="hint">(${esc(c.memo)})</span>` : ""}${c.is_late ? ' <span style="color:var(--warn);font-size:11px">지각신청</span>' : ""}</li>`;
     }).join("") || '<span class="hint">아직 아무도 신청하지 않았습니다 — 첫 번째가 되어보세요!</span>';
+    // 배정 현황 (읽기 전용, 내 자리 강조)
+    const asg = await get(`assignments?event_id=eq.${eventId}&select=*`);
+    const amap = {}; for (const a of asg) amap[a.slot_index] = a;
+    const myId = localStorage.getItem(MYKEY);
+    $("asgview").innerHTML = sortSlotIdx(ev.slots).map(i => {
+      const s = ev.slots[i]; const a = amap[i];
+      if (a && a.member_id) {
+        const m = MEMBERS.find(x => x.id === a.member_id);
+        const mine = a.member_id === myId;
+        return `<div class="asgrow${mine ? " mine" : ""}"><span class="pos">${esc(s.pos)}</span>${iconImg(a.entity_id, 24)}<b>${esc(m?.nickname || "?")}</b><span class="hint">${esc(EMAP.get(a.entity_id)?.name || "")}</span>${mine ? '<span class="you">← 나</span>' : ""}</div>`;
+      }
+      return `<div class="asgrow"><span class="pos">${esc(s.pos)}</span><span class="hint">${esc(s.require.label)} — 모집 중</span></div>`;
+    }).join("");
   }
   refreshRoster();
   pollTimer = setInterval(refreshRoster, 7000);
@@ -440,12 +469,11 @@ async function pageAdmin(key) {
         <input type="text" id="evtitle" placeholder="이벤트 제목" style="min-width:150px">
         <button class="btn" id="mkev">+ 이벤트 만들기</button>
         <span style="color:var(--line)">|</span>
-        <button class="btn sm" id="copymsg">📋 결과 복사</button>
-        <button class="btn ghost sm" id="copyurl">📢 모집글 복사</button>
         <button class="btn ghost sm" id="openme">🗡 내 무기 등록</button>
         <button class="btn ghost sm" id="delev" style="color:var(--warn); border-color:var(--warn)">🗑 삭제</button>
       </div>
     </div>
+    <div class="evtabs" id="evtabs"></div>
     <div class="cols" id="board" style="display:none">
       <div class="panel"><h2>조합 슬롯</h2>
         <div class="row" style="margin-bottom:8px"><button class="btn sm" id="auto">⚡ 자동 초안</button><button class="btn ghost sm" id="clearAll">배정 초기화</button></div>
@@ -453,6 +481,15 @@ async function pageAdmin(key) {
       <div class="panel"><h2>체크인 <b id="cicnt2"></b></h2><div id="pool"></div><p class="hint">참가자를 슬롯으로 드래그해서 배정 (클릭→클릭도 가능)</p></div>
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
+  function renderTabs() {
+    const bar = $("evtabs"); if (!bar) return;
+    bar.innerHTML = '<span style="color:var(--muted); font-size:12px; margin-right:6px; white-space:nowrap">이벤트:</span>' +
+      (events.length
+        ? events.map(e => `<button class="etab${EV && EV.id === e.id ? " on" : ""}" data-id="${e.id}">${esc(e.title)}</button>`).join("")
+        : '<span class="hint">아직 이벤트가 없습니다 — 위에서 만드세요</span>');
+    bar.querySelectorAll(".etab").forEach(t => t.onclick = () => openEvent(t.dataset.id));
+  }
+  renderTabs();
 
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
 
@@ -463,12 +500,6 @@ async function pageAdmin(key) {
     toast("이벤트 생성 완료 — 체크인 링크를 디코에 붙여넣으세요");
     events.unshift(rows[0]);
     openEvent(rows[0].id);
-  };
-  $("copyurl").onclick = () => {
-    if (!EV) return toast("이벤트를 먼저 만드세요");
-    // 길드 고정 URL 하나만 사용 — 디코에 항상 같은 주소가 올라간다
-    navigator.clipboard.writeText(`⚔️ ${EV.title} — 참가 신청 → ${BASE}#/g/${G.slug}`)
-      .then(() => toast("모집글 복사됨! (항상 같은 길드 URL입니다)"));
   };
 
   async function openEvent(id) {
@@ -485,6 +516,7 @@ async function pageAdmin(key) {
     const asg = await get(`assignments?event_id=eq.${id}&select=*`);
     ASSIGN = {}; for (const a of asg) ASSIGN[a.slot_index] = a;
     $("board").style.display = "";
+    renderTabs();
     await refresh();
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = setInterval(refresh, 7000);
@@ -525,16 +557,7 @@ async function pageAdmin(key) {
     }
     $("cicnt2").textContent = `${CHECKINS.length}명 신청 / ${free}명 대기`;
   }
-  // 역할순 정렬: 콜러 → 탱 → 힐러 → 서포터 → 딜러
-  function posPrio(pos) {
-    const p = String(pos);
-    if (p.includes("콜러")) return 0;
-    if (p.includes("탱")) return 1;
-    if (p.includes("힐")) return 2;
-    if (p.includes("서폿") || p.includes("서포터")) return 3;
-    return 4; // 딜러/근딜/원딜 등
-  }
-  const slotOrder = () => EV.slots.map((s, i) => ({ s, i })).sort((a, b) => posPrio(a.s.pos) - posPrio(b.s.pos) || a.i - b.i).map(x => x.i);
+  const slotOrder = () => sortSlotIdx(EV.slots);
   function renderSlots() {
     const box = $("slots"); box.innerHTML = "";
     slotOrder().forEach(i => { const s = EV.slots[i];
@@ -710,17 +733,6 @@ async function pageAdmin(key) {
       (missing.length ? `\n\n<span class="miss">⚠ 미충원: ${esc(missing.join(", "))}</span>` : "\n\n✅ 전 슬롯 충원");
   }
   function renderAll() { renderPool(); renderSlots(); renderMsg(); }
-  $("copymsg").onclick = () => {
-    if (!EV) return toast("이벤트가 없습니다");
-    const lines = [`⚔️ **${EV.title}**${EV.starts_at ? " — " + fmtTime(EV.starts_at) + " 출발" : ""}`, EV.spec || "", ""];
-    const missing = [];
-    slotOrder().forEach(i => { const s = EV.slots[i]; const a = ASSIGN[i];
-      if (a?.member_id) { const m = MEMBERS.find(x => x.id === a.member_id); lines.push(`${s.pos} — ${m?.nickname} (${EMAP.get(a.entity_id)?.name || ""})`); }
-      else missing.push(`${s.pos}(${s.require.label})`);
-    });
-    if (missing.length) lines.push("", `⚠ 미충원: ${missing.join(", ")}`);
-    navigator.clipboard.writeText(lines.join("\n")).then(() => toast("복사됨! 디코에 붙여넣으세요"));
-  };
   $("delev").onclick = async () => {
     if (!EV) return toast("이벤트를 먼저 선택하세요");
     if (!confirm(`'${EV.title}' 이벤트를 완전히 삭제할까요?\n체크인·배정 기록도 함께 삭제되며 출석 집계에서 빠집니다.`)) return;
@@ -731,7 +743,7 @@ async function pageAdmin(key) {
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     toast("이벤트를 삭제했습니다");
     if (events.length) openEvent(events[0].id);
-    else $("board").style.display = "none";
+    else { $("board").style.display = "none"; renderTabs(); }
   };
 
   if (events.length) openEvent(events[0].id);
