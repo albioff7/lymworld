@@ -502,6 +502,11 @@ async function pageRegister() {
     for (const eid of memberWeapons(m)) { selected.add(eid); const c = document.querySelector(`#cats .wtile[data-id="${eid}"]`); if (c) c.classList.add("on"); }
     $("selcnt").textContent = `(${selected.size}개)`;
   }
+  // 깜박임 애니메이션이 열린 드롭다운을 닫아버리는 브라우저 이슈 방지:
+  // 드롭다운을 만지는 순간 깜박임 중지, 선택 없이 벗어나면 다시 깜박임
+  $("who").addEventListener("mousedown", () => $("who").classList.remove("pulse"));
+  $("who").addEventListener("focus", () => $("who").classList.remove("pulse"));
+  $("who").addEventListener("blur", () => { if (!$("who").value) $("who").classList.add("pulse"); });
   $("who").onchange = async e => {
     clearTimeout(saveTimer); await saveNow(); // 사람 바꾸기 전에 이전 사람 것 저장
     curMid = e.target.value; dirty = false;
