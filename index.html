@@ -702,6 +702,24 @@ async function pageAdmin(key) {
     </div>`;
   $("openme").onclick = () => { location.hash = `#/g/${G.slug}/me`; };
   let EV = null, CHECKINS = [], ASSIGN = {}, picked = null, selSlot = null;
+  // 포지션 선택 모달 (원클릭)
+  function askRole(cur) {
+    const ROLES = ["콜러", "메인탱", "디펜탱", "오펜탱", "근딜", "원딜", "딜러", "힐러", "서포터", "자유"];
+    return new Promise(res => {
+      const ov = document.createElement("div"); ov.className = "modal";
+      ov.innerHTML = `<div class="box" style="max-width:360px">
+        <h3>포지션 선택</h3>
+        <div class="chips" style="margin-bottom:12px">${ROLES.map(r => `<button class="chip rolechip${r === cur ? " on" : ""}" data-r="${r}">${r}</button>`).join("")}</div>
+        <div class="row"><input type="text" id="rolecustom" placeholder="직접 입력" maxlength="10" style="flex:1"><button class="btn sm" id="roleok">확인</button></div>
+      </div>`;
+      const done = v => { res(v); ov.remove(); };
+      ov.querySelectorAll(".rolechip").forEach(b => b.onclick = () => done(b.dataset.r));
+      ov.querySelector("#roleok").onclick = () => done(ov.querySelector("#rolecustom").value);
+      ov.querySelector("#rolecustom").addEventListener("keydown", e => { if (e.key === "Enter") done(e.target.value); });
+      ov.addEventListener("click", e => { if (e.target === ov) done(null); });
+      document.body.appendChild(ov);
+    });
+  }
   // 텍스트 입력 모달 (특이사항 등)
   function askText(title, defaultVal) {
     return new Promise(res => {
@@ -947,7 +965,7 @@ async function pageAdmin(key) {
     box.querySelectorAll(".posedit").forEach(p => p.onclick = async e => {
       e.stopPropagation();
       const i = +p.dataset.i;
-      const t = await askText("포지션 이름 변경 (예: 원딜, 근딜, 힐러)", EV.slots[i].pos);
+      const t = await askRole(EV.slots[i].pos);
       if (t == null || !t.trim()) return;
       EV.slots[i].pos = t.trim().slice(0, 10);
       await patch(`events?id=eq.${EV.id}`, { slots: EV.slots });
