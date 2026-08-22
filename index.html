@@ -124,9 +124,10 @@
   .tclose:hover{opacity:1}
   .etab.on .tclose{color:#7a2318}
   .slotrow{display:flex; align-items:flex-start; gap:10px}
-  .posbox{width:58px; flex:none; display:flex; flex-direction:column; padding-top:6px}
+  .posbox{width:67px; flex:none; display:flex; flex-direction:column; padding-top:6px}
   .posbox .pos{color:var(--gold); font-weight:700; font-size:13.5px}
-  select.posedit{background:transparent; border:none; color:var(--gold); font-weight:700; font-size:13px; font-family:inherit; cursor:pointer; padding:0; max-width:58px}
+  select.posedit{background:transparent; border:none; color:var(--gold); font-weight:700; font-size:12.5px; font-family:inherit; cursor:pointer; padding:0; width:67px; max-width:67px; letter-spacing:-0.7px} /* 오펜서폿 등 4글자가 칸을 넘지 않도록 자간 압축 */
+  select.posedit option{letter-spacing:0}
   select.posedit:hover{text-decoration:underline dotted}
   select.posedit option{background:var(--surface); color:var(--ink)}
   .posbox .reqlbl{font-size:10px; color:var(--muted); line-height:1.25}
@@ -135,9 +136,10 @@
   .slotrow .ibox img{width:44px; height:44px}
   .istack{display:flex; flex-direction:column; align-items:center; width:62px; flex:none}
   .iwrap{position:relative; display:flex}
-  .iclr{position:absolute; top:-7px; right:-5px; padding:0 2px; background:none; border:none; color:#E5484D; font-size:14px; font-weight:800; line-height:1; cursor:pointer; text-shadow:0 1px 3px #000; opacity:.9; z-index:2}
-  .iclr:hover{opacity:1; color:#FF6B6B; transform:scale(1.15)}
-  .gearrst{margin-top:7px; width:56px; font-family:inherit; font-size:10px; color:var(--muted); background:transparent; border:1px dashed var(--line); border-radius:6px; padding:3px 0; cursor:pointer}
+  /* ✕ 표시는 작게, 누르는 범위는 18px 그대로 유지 */
+  .iclr{position:absolute; top:-7px; right:-6px; width:18px; height:18px; display:flex; align-items:center; justify-content:center; padding:0; background:none; border:none; color:#E5484D; font-size:8px; font-weight:800; line-height:1; cursor:pointer; text-shadow:0 1px 2px #000; opacity:.95; z-index:2}
+  .iclr:hover{color:#FF6B6B; font-size:11px}
+  .gearrst{margin-top:7px; width:64px; font-family:inherit; font-size:10px; color:var(--muted); background:transparent; border:1px dashed var(--line); border-radius:6px; padding:3px 0; cursor:pointer}
   .gearrst:hover{color:var(--warn); border-color:var(--warn)}
   .ilbl{font-size:10.5px; color:#D8D2C2; font-weight:500; margin-top:3px; width:62px; height:27px; text-align:center; line-height:1.27; word-break:keep-all; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical}
   .who2{margin-left:12px; display:flex; flex-direction:column; align-items:center; gap:3px; flex:none; padding-top:4px; min-width:120px; max-width:170px}
